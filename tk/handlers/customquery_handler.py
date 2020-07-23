@@ -48,7 +48,6 @@ class QueryConfDoSqlFileHandler(BaseHandler):
 
             sql = re.sub('update|drop', '', sql, 0, re.I)
 
-            dict_list = []
             res = []
             if db[0] == 'mysql':
                 mysql_conn = MysqlBase(**db_obj)
