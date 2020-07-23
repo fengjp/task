@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+# -*-coding:utf-8-*-
+
+from sqlalchemy import Column, String, Integer, DateTime, Text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import class_mapper
+from datetime import datetime
+
+Base = declarative_base()
+
+
+def model_to_dict(model):
+    model_dict = {}
+    for key, column in class_mapper(model.__class__).c.items():
+        model_dict[column.name] = getattr(model, key, None)
+    return model_dict
+
+
+class CustomQuery(Base):
+    __tablename__ = 'custom_query'
+
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    title = Column('title', String(50), default='')  # 标题
+    dblinkId = Column('dblinkId', Integer)  # 数据库源ID
+    database = Column('database', String(100), default='')  # 数据库名
+    user = Column('user', String(50), default='')  # 用户名
+    password = Column('password', String(50), default='')  # 密码
+    sql = Column('sql', Text, default='')  # SQL
+    colnames = Column('colnames', Text, default='')  # 自定义字段名
+    timesTy = Column('timesTy', String(50), default='')  # 轮询频率
+    timesTyVal = Column('timesTyVal', String(50), default='')  # 轮询频率值
+    colalarms = Column('colalarms', Text, default='')  # 告警配置
+    status = Column('status', String(5), default='1')  # 状态
+    create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
+    update_time = Column('update_time', DateTime(), default=datetime.now, onupdate=datetime.now)  # 记录更新时间
+
