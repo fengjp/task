@@ -54,8 +54,8 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                 res = mysql_conn.query(sql)
 
             if db[0] == 'oracle':
-                mysql_conn = OracleBase(**db_obj)
-                res = mysql_conn.query(sql)
+                oracle_conn = OracleBase(**db_obj)
+                res = oracle_conn.query(sql)
 
             if res:
                 try:
