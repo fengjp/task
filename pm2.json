@@ -1,8 +1,8 @@
 {
   "apps": [{
     "name": "task-9300",
-    "script": "/usr/local/bin/python3.7 startup.py --service=tk --port=9300",
-    "cwd": "/Users/fengjp/codo/task/",
+    "script": "/usr/bin/python3 startup.py --service=tk --port=9300",
+    "cwd": "/opt/codo/task/",
     "max_memory_restart": "150M",
     "log_date_format"  : "YYYY-MM-DD HH:mm Z",
     "log_file"   : "/var/log/supervisor/task.log",
