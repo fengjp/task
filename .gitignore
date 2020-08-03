@@ -7,6 +7,7 @@ __pycache__/
 *.pyc 
 # C extensions
 *.so
+pm2.json
  
 # Distribution / packaging
 .Python
