@@ -6,7 +6,7 @@
 from settings import CUSTOM_DB_INFO
 from libs.mysql_conn import MysqlBase
 from websdk.web_logs import ins_log
-
+from libs.aes_coder import decrypt
 
 def get_serverObjList(ip_list):
     """
@@ -26,7 +26,7 @@ def get_serverObjList(ip_list):
         data['ip'] = ip
         data['port'] = port
         data['username'] = username
-        data['password'] = password
+        data['password'] = decrypt(password)
         serverObjList.append(data)
 
     return serverObjList

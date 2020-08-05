@@ -24,7 +24,7 @@ class CustomQuery(Base):
     dblinkId = Column('dblinkId', Integer)  # 数据库源ID
     database = Column('database', String(100), default='')  # 数据库名
     user = Column('user', String(50), default='')  # 用户名
-    password = Column('password', String(50), default='')  # 密码
+    password = Column('password', String(100), default='')  # 密码
     sql = Column('sql', Text, default='')  # SQL
     colnames = Column('colnames', Text, default='')  # 自定义字段名
     timesTy = Column('timesTy', String(50), default='')  # 轮询频率

@@ -13,6 +13,7 @@ from models.task import model_to_dict, CustomQuery
 from libs.mysql_conn import MysqlBase
 from libs.oracle_conn import OracleBase
 from settings import CUSTOM_DB_INFO
+from libs.aes_coder import encrypt, decrypt
 
 
 class QueryConfDoSqlFileHandler(BaseHandler):
@@ -36,7 +37,7 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             db_obj['host'] = db[1]
             db_obj['port'] = int(db[2])
             db_obj['user'] = db[3]
-            db_obj['passwd'] = db[4]
+            db_obj['passwd'] = decrypt(db[4])
             db_obj['db'] = query_info.database
             sql = query_info.sql
 
@@ -44,10 +45,10 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                 db_obj['user'] = query_info.user
 
             if query_info.password:
-                db_obj['passwd'] = query_info.password
+                db_obj['passwd'] = decrypt(query_info.password)
 
             sql = re.sub('update|drop', '', sql, 0, re.I)
-
+            # ins_log.read_log('info', db_obj)
             res = []
             if db[0] == 'mysql':
                 mysql_conn = MysqlBase(**db_obj)
@@ -56,7 +57,7 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             if db[0] == 'oracle':
                 oracle_conn = OracleBase(**db_obj)
                 res = oracle_conn.query(sql)
-
+            ins_log.read_log('info', res)
             if res:
                 try:
                     colnames = json.loads(query_info.colnames)
@@ -199,6 +200,9 @@ class QueryConfFileHandler(BaseHandler):
         if exist_id:
             return self.write(dict(code=-2, msg='不要重复记录'))
 
+        # 加密密码
+        password = encrypt(password)
+
         sql = re.sub('update|drop', '', sql, 0, re.I)
 
         with DBContext('w', None, True) as session:
@@ -232,6 +236,9 @@ class QueryConfFileHandler(BaseHandler):
 
         if not title:
             return self.write(dict(code=-1, msg='标题不能为空'))
+
+        # 加密密码
+        password = encrypt(password)
 
         with DBContext('w', None, True) as session:
             session.query(CustomQuery).filter(CustomQuery.id == int(queryId)).update(
