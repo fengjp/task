@@ -8,7 +8,9 @@ __pycache__/
 # C extensions
 *.so
 pm2.json
- 
+static/report/
+.DS_Store
+
 # Distribution / packaging
 .Python
 build/
