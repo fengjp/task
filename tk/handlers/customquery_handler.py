@@ -21,15 +21,20 @@ class QueryConfDoSqlFileHandler(BaseHandler):
         key = self.get_argument('key', default=None, strip=True)
         value = self.get_argument('value', default=None, strip=True)
         dict_list = []
-        with DBContext('r') as session:
-            query_info = session.query(CustomQuery).filter(CustomQuery.id == value).first()
+        errormsg = ''
+        try:
+            with DBContext('r') as session:
+                query_info = session.query(CustomQuery).filter(CustomQuery.id == value).first()
 
-        dblinkId = query_info.dblinkId
-        CUSTOM_DB_INFO['db'] = 'codo_cmdb'
-        mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
-        # 获取数据库源 连接地址
-        select_db = 'select db_type, db_host, db_port, db_user, db_pwd from asset_db where id = {}'.format(dblinkId)
-        db_info = mysql_conn.query(select_db)
+            dblinkId = query_info.dblinkId
+            CUSTOM_DB_INFO['db'] = 'codo_cmdb'
+            mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
+            # 获取数据库源 连接地址
+            select_db = 'select db_type, db_host, db_port, db_user, db_pwd from asset_db where id = {}'.format(dblinkId)
+            db_info = mysql_conn.query(select_db)
+        except:
+            errormsg = '获取数据库源连接信息失败'
+            return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
 
         if len(db_info) > 0:
             db = db_info[0]
@@ -50,14 +55,18 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             sql = re.sub('update|drop', '', sql, 0, re.I)
             # ins_log.read_log('info', db_obj)
             res = []
-            if db[0] == 'mysql':
-                mysql_conn = MysqlBase(**db_obj)
-                res = mysql_conn.query(sql)
+            try:
+                if db[0] == 'mysql':
+                    mysql_conn = MysqlBase(**db_obj)
+                    res = mysql_conn.query(sql)
 
-            if db[0] == 'oracle':
-                oracle_conn = OracleBase(**db_obj)
-                res = oracle_conn.query(sql)
-            ins_log.read_log('info', res)
+                if db[0] == 'oracle':
+                    oracle_conn = OracleBase(**db_obj)
+                    res = oracle_conn.query(sql)
+            except:
+                errormsg = '%s 数据库: 连接失败' % (db_obj['host'])
+                return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
+
             if res:
                 try:
                     colnames = json.loads(query_info.colnames)
@@ -92,14 +101,18 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                                     if sign == '=' and dbval == alarmVal:
                                         _d['target'] = alarmObj['alarmType']
 
+                                    if 'target' not in _d:
+                                        _d['target'] = '正常'
+
                         dict_list.append(_d)
                 except Exception as e:
                     ins_log.read_log('info', e)
                     dict_list = []
+                    errormsg = '字段格式错误'
 
-                return self.write(dict(code=0, msg='获取成功', data=dict_list))
+                return self.write(dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list))
 
-        return self.write(dict(code=-1, msg='获取失败', data=[]))
+        return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
 
 
 class QueryConfForshowFileHandler(BaseHandler):
@@ -237,8 +250,13 @@ class QueryConfFileHandler(BaseHandler):
         if not title:
             return self.write(dict(code=-1, msg='标题不能为空'))
 
-        # 加密密码
-        password = encrypt(password)
+        with DBContext('r') as session:
+            old_password = session.query(CustomQuery.password).filter(CustomQuery.id == int(queryId)).first()[0]
+            # ins_log.read_log('info', old_password)
+
+        if old_password != password:
+            # 加密密码
+            password = encrypt(password)
 
         with DBContext('w', None, True) as session:
             session.query(CustomQuery).filter(CustomQuery.id == int(queryId)).update(

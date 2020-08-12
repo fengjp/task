@@ -61,7 +61,7 @@ class ReportHandler(BaseHandler):
                 file_na = getFileNa(_obj["file_na"], stime, etime)
                 file_path = os.path.join(filedir_path, file_na)
                 columns = _obj["columns"]
-                sql = _obj["sql"].format(stime, etime)
+                sql = _obj["sql"].format(stime=stime, etime=etime)
                 oracle_conn = OracleBase(**ordb_obj)
                 res = oracle_conn.query(sql)
                 # res = (('4401', 904, 904, 0, 547, 56, 0),
@@ -92,9 +92,50 @@ class ReportHandler(BaseHandler):
         return self.write(dict(code=0, msg='执行成功'))
 
 
+class ReportListHandler(BaseHandler):
+    def get(self, *args, **kwargs):
+        data_list = []
+        report_list = []
+        try:
+            # 每日巡检报告
+            obj = {}
+            obj['report_val'] = 'xunjian'
+            obj['report_na'] = '每日巡检报告'
+            obj['report_sql'] = ''
+            data_list.append(obj)
+
+            obj = {}
+            obj['value'] = 'xunjian'
+            obj['label'] = '每日巡检报告'
+            report_list.append(obj)
+
+            # 其它脚步报表
+            for key in report_Obj:
+                obj = {}
+                obj['report_val'] = key
+                obj['report_na'] = report_Obj[key]['file_na']
+                obj['report_sql'] = report_Obj[key]['sql']
+                data_list.append(obj)
+
+                obj = {}
+                obj['value'] = key
+                obj['label'] = report_Obj[key]['file_na']
+                report_list.append(obj)
+
+        except:
+            traceback.print_exc()
+            return self.write(dict(code=-1, msg='获取失败', reportdata=data_list, reportList=report_list))
+
+        if len(data_list) == 0:
+            return self.write(dict(code=-2, msg='没有文件', reportdata=data_list, reportList=report_list))
+
+        return self.write(dict(code=0, msg='获取成功', reportdata=data_list, reportList=report_list))
+
+
 report_urls = [
     (r"/v1/createFile/", ReportHandler),
     (r"/v1/getFileList/", ReportHandler),
+    (r"/v1/getReportList/", ReportListHandler),
 ]
 
 if __name__ == "__main__":
