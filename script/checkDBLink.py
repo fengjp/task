@@ -3,11 +3,19 @@
 """
 Desc   : 检查数据库连接是否正常
 """
+import os
+import sys
 
+_op = os.path.dirname
+cwdir = _op(os.path.abspath(__file__))
+project_path = _op(_op(os.path.abspath(__file__)))
+app_path = _op(project_path)
+sys.path.insert(0, project_path)
 from libs.mysql_conn import MysqlBase
 from libs.oracle_conn import OracleBase
 from settings import CUSTOM_DB_INFO
 from libs.aes_coder import decrypt
+import traceback
 
 
 def getDBList():
@@ -41,18 +49,25 @@ def run():
                 if db[1] == 'oracle':
                     db_conf['db'] = 'orcl'
 
-            db_conn = MysqlBase(**db_conf)
+            if db[1] == 'mysql':
+                db_conn = MysqlBase(**db_conf)
+
+            if db[1] == 'oracle':
+                db_conn = OracleBase(**db_conf)
+
             if db_conn.test():
                 state = 'Running'
             else:
                 state = 'failed'
 
+            CUSTOM_DB_INFO['db'] = 'codo_cmdb'
+            mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
             up_sql = '''update codo_cmdb.asset_db set state = '%s' where id = %s''' % (state, db[0])
-            db_conn.change(up_sql)
+            mysql_conn.change(up_sql)
 
         except:
+            traceback.print_exc()
             return 'failed'
-
     return 'ok'
 
 
