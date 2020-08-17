@@ -68,6 +68,7 @@ def run():
         except:
             traceback.print_exc()
             return 'failed'
+    print(state)
     return 'ok'
 
 
