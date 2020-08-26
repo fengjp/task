@@ -9,11 +9,26 @@ from websdk.consts import const
 from websdk.cache_context import cache_conn
 from websdk.web_logs import ins_log
 from sqlalchemy import or_, and_
-from models.task import model_to_dict, CustomQuery
+from models.task import model_to_dict, CustomQuery, CustomTmp
 from libs.mysql_conn import MysqlBase
 from libs.oracle_conn import OracleBase
 from settings import CUSTOM_DB_INFO
 from libs.aes_coder import encrypt, decrypt
+from collections import Counter
+
+# typeObj: [
+#     {'id': 0, 'name': '正常'},
+#     {'id': 1, 'name': '一般'},
+#     {'id': 2, 'name': '严重'},
+#     {'id': 3, 'name': '致命'},
+# ]
+
+TypeObj = {
+    '正常': 0,
+    '一般': 1,
+    '严重': 2,
+    '致命': 3,
+}
 
 
 class QueryConfDoSqlFileHandler(BaseHandler):
@@ -106,13 +121,15 @@ class QueryConfDoSqlFileHandler(BaseHandler):
 
                         dict_list.append(_d)
                 except Exception as e:
-                    ins_log.read_log('info', e)
+                    ins_log.read_log('error', e)
                     dict_list = []
                     errormsg = '字段格式错误'
 
-                return self.write(dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list))
+                dict_list.sort(key=lambda x: TypeObj[x['target']], reverse=True)
+                countObj = Counter([i['target'] for i in dict_list])
+                return self.write(dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list, count=dict(countObj)))
 
-        return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
+        return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
 
 
 class QueryConfForshowFileHandler(BaseHandler):
@@ -120,10 +137,19 @@ class QueryConfForshowFileHandler(BaseHandler):
         key = self.get_argument('key', default=None, strip=True)
         value = self.get_argument('value', default=None, strip=True)
         dict_list = []
+
+        try:
+            tids = [d['id'] for d in json.loads(value)]
+        except:
+            tids = []
+        ins_log.read_log('info', tids)
         with DBContext('r') as session:
-            if key and value:
+            if key and value and key != 'tid':
                 count = session.query(CustomQuery).filter_by(**{key: value}).count()
                 query_info = session.query(CustomQuery).filter_by(**{key: value}).all()
+            elif key == 'tid':
+                count = session.query(CustomQuery).filter(CustomQuery.id.in_(tids)).count()
+                query_info = session.query(CustomQuery).filter(CustomQuery.id.in_(tids)).all()
             else:
                 count = session.query(CustomQuery).count()
                 query_info = session.query(CustomQuery).all()
@@ -151,7 +177,7 @@ class QueryConfFileHandler(BaseHandler):
         value = self.get_argument('value', default=None, strip=True)
         dict_list = []
         with DBContext('r') as session:
-            if key and value:
+            if key and value and key != 'isTmp':
                 count = session.query(CustomQuery).filter_by(**{key: value}).count()
                 query_info = session.query(CustomQuery).filter_by(**{key: value}).order_by(CustomQuery.id.desc()).all()
             else:
@@ -168,20 +194,34 @@ class QueryConfFileHandler(BaseHandler):
             for i in db_name:
                 db_obj[i[0]] = i[1]
 
-        for msg in query_info:
-            data_dict = model_to_dict(msg)
-            data_dict['colnames'] = json.loads((data_dict['colnames']))
-            data_dict['colalarms'] = json.loads((data_dict['colalarms']))
-            data_dict['create_time'] = str(data_dict['create_time'])
-            data_dict['update_time'] = str(data_dict['update_time'])
-            if data_dict['timesTy'] == 'timesTy1':
-                data_dict['timesTy1Val'] = data_dict['timesTyVal']
-            else:
-                data_dict['timesTy2Val'] = data_dict['timesTyVal']
+        if key == 'isTmp':
+            for msg in query_info:
+                data_dict = {}
+                data_dict['id'] = msg.id
+                data_dict['title'] = msg.title
+                data_dict['timesTy'] = msg.timesTy
+                data_dict['timesTyVal'] = msg.timesTyVal
+                if data_dict['timesTy'] == 'timesTy1':
+                    data_dict['timesTy1Val'] = data_dict['timesTyVal']
+                else:
+                    data_dict['timesTy2Val'] = data_dict['timesTyVal']
+                dict_list.append(data_dict)
 
-            data_dict['dblinkIdNa'] = db_obj.get(data_dict['dblinkId'], '')
+        else:
+            for msg in query_info:
+                data_dict = model_to_dict(msg)
+                data_dict['colnames'] = json.loads((data_dict['colnames']))
+                data_dict['colalarms'] = json.loads((data_dict['colalarms']))
+                data_dict['create_time'] = str(data_dict['create_time'])
+                data_dict['update_time'] = str(data_dict['update_time'])
+                if data_dict['timesTy'] == 'timesTy1':
+                    data_dict['timesTy1Val'] = data_dict['timesTyVal']
+                else:
+                    data_dict['timesTy2Val'] = data_dict['timesTyVal']
 
-            dict_list.append(data_dict)
+                data_dict['dblinkIdNa'] = db_obj.get(data_dict['dblinkId'], '')
+
+                dict_list.append(data_dict)
 
         return self.write(dict(code=0, msg='获取成功', data=dict_list, count=count))
 
@@ -313,10 +353,90 @@ class QueryConfFileHandler(BaseHandler):
         return self.write(dict(code=0, msg=msg))
 
 
+class TmpFileHandler(BaseHandler):
+    def get(self, *args, **kwargs):
+        key = self.get_argument('key', default=None, strip=True)
+        value = self.get_argument('value', default=None, strip=True)
+        tmpList = []
+        data_dict = {}
+        with DBContext('r') as session:
+            tmp_info = session.query(CustomTmp).order_by(CustomTmp.id.desc()).all()
+
+        for msg in tmp_info:
+            tmpList_dict = {}
+            tmpList_dict['value'] = msg.id
+            tmpList_dict['label'] = msg.tmpNa
+            tmpList.append(tmpList_dict)
+
+            if msg.username not in data_dict:
+                data_dict[msg.username] = []
+
+            _d = {}
+            _d['id'] = msg.id
+            _d['tmpNa'] = msg.tmpNa
+            _d['username'] = msg.username
+            _d['selectionAll'] = json.loads(msg.selectionAll)
+            data_dict[msg.username].append(_d)
+
+        return self.write(dict(code=0, msg='获取成功', tmpList=tmpList, data=data_dict))
+
+    def post(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        tmpNa = data.get('tmpNa')
+        selectionAll = data.get('selectionAll')
+        username = data.get('username')
+
+        with DBContext('r') as session:
+            exist_id = session.query(CustomTmp.id).filter(CustomTmp.tmpNa == tmpNa).first()
+
+        if exist_id:
+            return self.write(dict(code=-1, msg='标题重复'))
+
+        with DBContext('w', None, True) as session:
+            new_tmp = CustomTmp(
+                tmpNa=tmpNa, selectionAll=json.dumps(selectionAll), username=username
+            )
+            session.add(new_tmp)
+
+        return self.write(dict(code=0, msg='添加成功'))
+
+    def put(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        tid = data.get('id')
+        tmpNa = data.get('tmpNa')
+        selectionAll = data.get('selectionAll')
+        username = data.get('username')
+
+        with DBContext('w', None, True) as session:
+            session.query(CustomTmp).filter(CustomTmp.id == int(tid)).update(
+                {
+                    CustomTmp.tmpNa: tmpNa,
+                    CustomTmp.selectionAll: json.dumps(selectionAll),
+                    CustomTmp.username: username,
+                }, )
+
+        return self.write(dict(code=0, msg='编辑成功'))
+
+    def delete(self, *args, **kwargs):
+        data = json.loads(self.request.body.decode("utf-8"))
+        id = data.get('id')
+
+        with DBContext('w', None, True) as session:
+            if id:
+                session.query(CustomTmp).filter(CustomTmp.id == id).delete(synchronize_session=False)
+                session.commit()
+            else:
+                return self.write(dict(code=1, msg='关键参数不能为空'))
+
+        self.write(dict(code=0, msg='删除成功'))
+
+
 customquery_urls = [
     (r"/v1/queryConf/", QueryConfFileHandler),
     (r"/v1/queryConfForshow/", QueryConfForshowFileHandler),
     (r"/v1/queryConf/do_sql/", QueryConfDoSqlFileHandler),
+    (r"/v1/operationtmp/", TmpFileHandler),
+    (r"/v1/gettmp/", TmpFileHandler),
 ]
 
 if __name__ == "__main__":

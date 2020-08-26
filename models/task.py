@@ -34,3 +34,12 @@ class CustomQuery(Base):
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
     update_time = Column('update_time', DateTime(), default=datetime.now, onupdate=datetime.now)  # 记录更新时间
 
+
+class CustomTmp(Base):
+    __tablename__ = 'custom_tmp'
+
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    tmpNa = Column('tmpNa', String(50), default='')  # 标题
+    selectionAll = Column('selectionAll', Text, default='')
+    username = Column('username', String(50), default='')
+    create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
