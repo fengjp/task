@@ -15,6 +15,8 @@ from libs.oracle_conn import OracleBase
 from settings import CUSTOM_DB_INFO
 from libs.aes_coder import encrypt, decrypt
 from collections import Counter
+import traceback
+import datetime
 
 # typeObj: [
 #     {'id': 0, 'name': '正常'},
@@ -78,8 +80,8 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                 if db[0] == 'oracle':
                     oracle_conn = OracleBase(**db_obj)
                     res = oracle_conn.query(sql)
-            except:
-                errormsg = '%s 数据库: 连接失败' % (db_obj['host'])
+            except Exception as e:
+                errormsg = '%s 数据库: 查询失败, %s' % (db_obj['host'], e)
                 return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
 
             if res:
@@ -96,10 +98,10 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                     for i in res:
                         _d = dict(zip(dict_key, i))
                         for selColObj in colalarms:
+                            # 判断指标值
                             selCol = selColObj['selCol']
                             if selCol in _d:
                                 dbval = _d[selCol]
-                                # 判断指标值
                                 subColList = selColObj['subColList']
                                 subColList = sorted(subColList, key=lambda x: x['alarmVal'], reverse=True)
                                 for alarmObj in subColList:
@@ -120,14 +122,27 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                                         _d['target'] = '正常'
 
                         dict_list.append(_d)
+
+
+                    if len(colalarms) > 0:
+                        dict_list.sort(key=lambda x: TypeObj[x['target']], reverse=True)
+                        countObj = dict(Counter([i['target'] for i in dict_list]))
+                    else:
+                        countObj = {}
+
                 except Exception as e:
-                    ins_log.read_log('error', e)
+                    traceback.print_exc()
                     dict_list = []
+                    countObj = {}
                     errormsg = '字段格式错误'
 
-                dict_list.sort(key=lambda x: TypeObj[x['target']], reverse=True)
-                countObj = Counter([i['target'] for i in dict_list])
-                return self.write(dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list, count=dict(countObj)))
+                # 转换 时间类型字段
+                for _d in dict_list:
+                    for k, v in _d.items():
+                        if isinstance(v, datetime.datetime):
+                            _d[k] = v.strftime("%Y-%m-%d %H:%M:%S")
+
+                return self.write(dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list, count=countObj))
 
         return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
 
