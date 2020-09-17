@@ -102,6 +102,8 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                             selCol = selColObj['selCol']
                             if selCol in _d:
                                 dbval = _d[selCol]
+                                if not dbval:
+                                    dbval = 0
                                 subColList = selColObj['subColList']
                                 subColList = sorted(subColList, key=lambda x: x['alarmVal'], reverse=True)
                                 for alarmObj in subColList:
