@@ -11,6 +11,7 @@ from script.pbToxls import saveExce
 import traceback
 from libs.file_conn import *
 from script.sql_obj import *
+import pandas as pd
 
 
 def getFileNa(na, st, et):
@@ -27,11 +28,37 @@ class ReportHandler(BaseHandler):
         try:
             root, dirs, files = os.walk(dir_path).__next__()
             for f in files:
+                filename = dir_path + f
+                df = pd.read_excel(filename)
+                columns = []
+                num = 1
+                for k in  list(df.columns.values[1:]):
+                    columns_temp = {"title": '', "key": '', "align": 'center'}
+                    columns_temp["title"] = str(k)
+                    columns_temp["key"] = "number" + str(num)
+                    columns.append(columns_temp)
+                    num = num  + 1
+                ins_log.read_log('info', "11111111111111111111111111111111111111")
+                ins_log.read_log('info', columns)
+                all_list = []
+                for  d in  df.values:
+                    temp_dict = {}
+                    num = 1
+                    for k in list(d[1:]):
+                        tokey  = "number" + str(num)
+                        temp_dict[tokey] = str(k)
+                        num = num + 1
+                    all_list.append(temp_dict)
+
+                ins_log.read_log('info', "22222222222222222222222222222222222")
+                ins_log.read_log('info', all_list)
                 obj = {
                     'file_na': f,
                     'file_size': '{}{}'.format(get_FileSize(os.path.join(root, f)), 'KB'),
                     'ctime': get_FileCreateTime(os.path.join(root, f)),
                     'url': 'http://{}/static/report/{}/{}'.format(self.request.host, report_val, f),
+                    'columns':str(columns),
+                    'file_data': str(all_list),
                 }
                 dict_list.append(obj)
             dict_list.sort(key=lambda x: x['ctime'], reverse=True)
@@ -103,10 +130,19 @@ class ReportListHandler(BaseHandler):
             obj['report_na'] = '每日巡检报告'
             obj['report_sql'] = ''
             data_list.append(obj)
+            obj = {}
+            obj['report_val'] = 'timing'
+            obj['report_na'] = '定时报告'
+            obj['report_sql'] = ''
+            data_list.append(obj)
 
             obj = {}
             obj['value'] = 'xunjian'
             obj['label'] = '每日巡检报告'
+            report_list.append(obj)
+            obj = {}
+            obj['value'] = 'timing'
+            obj['label'] = '定时报告'
             report_list.append(obj)
 
             # 其它脚步报表
