@@ -50,8 +50,7 @@ class ReportHandler(BaseHandler):
                         num = num + 1
                     all_list.append(temp_dict)
 
-                ins_log.read_log('info', "22222222222222222222222222222222222")
-                ins_log.read_log('info', all_list)
+
                 obj = {
                     'file_na': f,
                     'file_size': '{}{}'.format(get_FileSize(os.path.join(root, f)), 'KB'),
@@ -60,6 +59,8 @@ class ReportHandler(BaseHandler):
                     'columns':str(columns),
                     'file_data': str(all_list),
                 }
+                # ins_log.read_log('info', "22222222222222222222222222222222222")
+                # ins_log.read_log('info', obj)
                 dict_list.append(obj)
             dict_list.sort(key=lambda x: x['ctime'], reverse=True)
         except:

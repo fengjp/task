@@ -38,6 +38,8 @@ def toexcel(all_customized_list,asset_date,temp_dict):
     for j in all_customized_list:
         for i in asset_date:
             if str(i[0]) == j[2]:  # 数据源id相等
+                if len(j[3]) <= 0:  #库名
+                    j[3] = i[3]
                 CUSTOM_DB_INFO = dict(
                     host=i[6],
                     port=i[8],
@@ -64,8 +66,13 @@ def toexcel(all_customized_list,asset_date,temp_dict):
                 temp_copy2 = temp_copy.split('|')
                 # 保存文件
                 Base_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                upload_path = '{}/static/report/timing/'.format(Base_DIR)
-                file_path = upload_path + j[0] + str(
+                upload_path = '{}/static/report/'.format(Base_DIR)
+                upload_path =  upload_path + j[6]
+                # 创建的目录
+                if not os.path.exists(upload_path):
+                    os.mkdir(upload_path)
+
+                file_path = upload_path + '/' + j[0] + str(
                     datetime.datetime.now().strftime('%Y%m%d-%H:%M:%S')) + ".xls"
 
                 writer = pd.ExcelWriter(file_path, engine='xlsxwriter')
@@ -86,14 +93,24 @@ class Customized_list(BaseHandler):
             for ass_id ,ass_name,ass_sqlstr, asse_remarks,ass_username,db_ctime in  AssetSql_date:
                 temp_dict[ass_id] = ass_sqlstr
 
+        #获取当前日期星期几
+        d = datetime.datetime.today()  # 获取当前日期时间
+        today_week = d.isoweekday()  # 获取时间周几
+        ins_log.read_log('info', "11111111111111111111111111111111111111")
+        ins_log.read_log('info', today_week)
+        ins_log.read_log('info', "11111111111111111111111111111111111111")
         now = datetime.datetime.now()
         temp_time = now.strftime('%H:%M')
         #筛选当前要执行的sql
         all_customized_list = []
         if len(customizedList_date) > 0:
-            for id ,db_title,db_header,db_linkId,dbname,db_id, db_time,db_ctime in  customizedList_date:
-                if str(temp_time) ==  str(db_time): #当前需要执行的sql
-                    all_customized_list.append([db_title,db_header,db_linkId,dbname,db_id, db_time])
+            for id ,db_title,db_header,dbname_id,dbname,db_id,db_cycle ,db_time,db_download_dir,db_ctime in  customizedList_date:
+                if len(list(db_cycle)) <= 0: #当没有选择执行周期
+                    if str(temp_time) ==  str(db_time): #当前需要执行的sql
+                        all_customized_list.append([db_title,db_header,dbname_id,dbname,db_id,db_cycle,db_download_dir, db_time])
+                elif  str(today_week) in  list(db_cycle):
+                    if str(temp_time) ==  str(db_time): #当前需要执行的sql
+                        all_customized_list.append([db_title,db_header,dbname_id,dbname,db_id,db_cycle,db_download_dir, db_time])
         #执行sql
         if len(all_customized_list) ==1: #一条数据时
             toexcel(all_customized_list, asset_date,temp_dict)
