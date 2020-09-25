@@ -26,6 +26,7 @@ import datetime
 # ]
 
 TypeObj = {
+    '未知': -1,
     '正常': 0,
     '一般': 1,
     '严重': 2,
@@ -121,8 +122,8 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                                         _d['target'] = alarmObj['alarmType']
 
                                     if 'target' not in _d:
-                                        _d['target'] = '正常'
-
+                                        _d['target'] = '未知'
+                        # ins_log.read_log('info', _d)
                         dict_list.append(_d)
 
 
