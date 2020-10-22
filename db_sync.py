@@ -5,6 +5,7 @@ Desc    :
 """
 
 from models.task import Base as Tbase
+from models.certdata import Base as Cbase
 from websdk.consts import const
 from settings import settings as app_settings
 # ORM创建表结构
@@ -23,6 +24,7 @@ engine = create_engine('mysql+pymysql://%s:%s@%s:%s/%s?charset=utf8' % (
 def create():
     # Abase.metadata.create_all(engine)
     Tbase.metadata.create_all(engine)
+    Cbase.metadata.create_all(engine)
     print('[Success] 表结构创建成功!')
 
 
