@@ -49,12 +49,10 @@ class Customized(Base):
     __tablename__ = 'customizedList'
 
     id = Column('id', Integer, primary_key=True, autoincrement=True)
-    totitle = Column('totitle', String(500))  # 标题
-    header = Column('header', String(500))  # 标题
-    dbname_id = Column('dbname_id', String(300))  # 数据源
-    dataname = Column('dataname', String(300))  # 数据库名
-    dbid = Column('dbid', String(50), ) #id
-    cycle  = Column('cycle', String(50), ) #id
+    totitle = Column('totitle', String(1500))  # 标题
+    dbid = Column('dbid', String(50), ) #数据库脚本id
+    cycle  = Column('cycle', String(50), ) #周期
     times = Column('times', String(20)) #执行时间
     download_dir = Column('download_dir', String(50)) #文件目录
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
+    start_end=  Column('start_end', String(50), )

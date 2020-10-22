@@ -24,12 +24,10 @@ class CustomizedHandler(BaseHandler):
         data_list = [{
           "id" : "",
           "totitle" : '每日巡检报告',
-          "header" : '',
           "dbid" : '',
           "times" : '',
-          "dbname_id" : '',
-          "dataname" : '',
           "cycle" : '',
+          "start_end": '',
           "download_dir" : 'xunjian',
         },]
         # key = self.get_argument('key', default=None, strip=True)
@@ -49,12 +47,10 @@ class CustomizedHandler(BaseHandler):
             data_dict = model_to_dict(msg)
             Customizationlist_dict["id"] = data_dict["id"]
             Customizationlist_dict["totitle"] = data_dict["totitle"]
-            Customizationlist_dict["header"] = data_dict["header"]
-            Customizationlist_dict["dbname_id"] = data_dict["dbname_id"]
-            Customizationlist_dict["dataname"] = data_dict["dataname"]
             Customizationlist_dict["dbid"] = data_dict["dbid"]
             Customizationlist_dict["times"] = data_dict["times"]
             Customizationlist_dict["cycle"] = str(data_dict["cycle"])
+            Customizationlist_dict["start_end"] = str(data_dict["start_end"])
             Customizationlist_dict["download_dir"] = data_dict["download_dir"]
 
             data_list.append(Customizationlist_dict)
@@ -67,13 +63,10 @@ class CustomizedHandler(BaseHandler):
     def post(self, *args, **kwargs):
         data = json.loads(self.request.body.decode("utf-8"))
         totitle = str(data.get('title', None))
-        header = str(data.get('header', None))
-        dbname_id = str(data.get('dbname_id', None))
-        dataname = str(data.get('dataname', None))
         dbid = str(data.get('dbid', None))
         times = data.get('times', None)
         cycle = str(data.get('cycle', None))
-        # ins_log.read_log('info',totitle)
+        start_end = str(data.get('start_end', None))
         now_time = str(datetime.now().strftime('%Y%m%d%H%M%S'))
         download_dir = "timing" + now_time
 
@@ -81,12 +74,10 @@ class CustomizedHandler(BaseHandler):
         with DBContext('w', None, True) as session:
             session.add(Customized(
                 totitle=totitle,
-                header=header,
                 dbid=dbid,
                 times=times,
-                dbname_id=dbname_id,
-                dataname=dataname,
                 cycle=cycle,
+                start_end=start_end,
                 download_dir=download_dir,
             ))
             session.commit()
@@ -106,7 +97,8 @@ class CustomizedHandler(BaseHandler):
         ins_log.read_log('info', upload_path)
         ins_log.read_log('info', "11111111111111111111111111111111111111")
         os.chdir(upload_path)
-        shutil.rmtree(download_dir)
+        if os.path.exists(download_dir):
+             shutil.rmtree(download_dir)
 
 
 
@@ -118,12 +110,10 @@ class CustomizedHandler(BaseHandler):
         data = json.loads(self.request.body.decode("utf-8"))
         id = data.get('id', None)
         totitle = str(data.get('title', None))
-        header = str(data.get('header', None))
-        dbname_id = str(data.get('dbname_id', None))
-        dataname = str(data.get('dataname', None))
         dbid = str(data.get('dbid', None))
         times = data.get('times', None)
         cycle = str(data.get('cycle', None))
+        start_end  =  str(data.get('start_end', None))
         download_dir = str(data.get('download_dir', None))
         # ins_log.read_log('info',totitle)
 
@@ -131,12 +121,10 @@ class CustomizedHandler(BaseHandler):
             with DBContext('w', None, True) as session:
                 session.query(Customized).filter(Customized.id == id).update({
                 Customized.totitle: totitle,
-                Customized.header: header,
-                Customized.dbname_id: dbname_id,
-                Customized.dataname: dataname,
                 Customized.dbid: dbid,
                 Customized.times: times,
                 Customized.cycle: cycle,
+                Customized.start_end: start_end,
                 Customized.download_dir: download_dir,
                 })
                 session.commit()
