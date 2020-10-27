@@ -29,10 +29,10 @@ DB_list = {}
 # ftp请求测试，判断是否异常
 # 数据库
 ftpdict = {
-    "ftp://10.40.30.16": {"username": "jiankong", "password": "123"},
+    "ftp://10.40.30.16": {"username": "hlw", "password": "hlw"},#
     "ftp://173.173.10.23": {"username": "jiankong", "password": "123"},
     "ftp://10.40.30.253": {"username": "jiankong", "password": "123"},
-    "ftp://10.40.30.33": {"username": "jiankong", "password": "123"},
+    "ftp://10.40.30.33": {"username": "jiankong", "password": "123"},#
 }
 
 

@@ -33,15 +33,12 @@ class MonitorHandler(BaseHandler):
             carddict = getcard1(ipstr, asb)  # 文件分区使用情况
             cardlist.append(carddict)
         if cardtype == '2':
-            carddict = getcard2(ipstr, asb)  # 文件分区使用情况
+            carddict = getcard2(ipstr, asb)  # 网卡使用情况
             cardlist.append(carddict)
-        # asb.run(hosts=ipstr, module="shell", args='uptime')
-        # stdout_dict = json.loads(asb.get_result())
-        ins_log.read_log('info', "1222222222222222222222000000000000000000000")
-        ins_log.read_log('info', cardlist)
-        ins_log.read_log('info', "11111111111111111100000000000000000000000000")
+        if cardtype == '3':
+            carddict = getcard3(ipstr, asb)  # cpu使用率
+            cardlist.append(carddict)
         if len(cardlist) > 0:
-            ins_log.read_log('info', "13333333333333333333333333")
             self.write(dict(code=0, msg='获取報告成功', count=1, data=cardlist))
         else:
             self.write(dict(code=-1, msg='没有相关数据', count=0, data=[]))
@@ -74,6 +71,7 @@ def getcard0(ipstr, asb):
     # 获取操作系统版本
     asb.run(hosts=ipstr, module="shell", args='cat  /etc/*release*')
     stdout_dict = json.loads(asb.get_result())
+
     data_dict["操作系统版本"] = stdout_dict["failed"][ipstr]["stdout_lines"][0]
     carddict["tableData"].append(data_dict)
     return carddict
@@ -108,10 +106,6 @@ def getcard1(ipstr, asb):
             data_dict["分区已使用大小(自发现)"] = temp_list[i].split()[2]
             carddict["tableData"].append(data_dict)
 
-    # ins_log.read_log('info', "1222222222222222222222222222222222222")
-    # ins_log.read_log('info', stdout_dict)
-    # ins_log.read_log('info', carddict)
-    # ins_log.read_log('info', "1111111111111111112222222222222222222")
     return carddict
 def getcard2(ipstr, asb):
     carddict = {"title": "网卡使用情况", "flag": "2", "tableData": []}
@@ -131,14 +125,36 @@ def getcard2(ipstr, asb):
             data_dict["output_sum_package"] = int(temp_list[i].split()[10])  + int(temp_list[i].split()[11])
             data_dict["sum_flow"] = str(float((temp_list[i].split()[1] + temp_list[i].split()[9]))/1000) + "KB"
             carddict["tableData"].append(data_dict)
-    # ins_log.read_log('info', "1222222222222222222222222222222222222")
-    # ins_log.read_log('info', carddict)
-    # ins_log.read_log('info', "1111111111111111112222222222222222222")
+    return carddict
+def getcard3(ipstr, asb):
+    carddict = {"title": "cpu使用率", "flag": "3", "tableData": []}
+    # 文件分区使用情况
+
+    asb.run(hosts=ipstr, module="shell", args='top')
+    stdout_dict = json.loads(asb.get_result())
+    ins_log.read_log('info', "800000000001111111111111111112222")
+    ins_log.read_log('info', stdout_dict)
+    ins_log.read_log('info', "800000000001111111111111111112222")
+    if stdout_dict["success"]:
+        temp_list = stdout_dict["success"][ipstr]["stdout_lines"]
+        for i in range(2, len(temp_list)):
+            ins_log.read_log('info', "8000000000011111111111111111111")
+            ins_log.read_log('info', temp_list[i])
+            ins_log.read_log('info', "8000000000011111111111111111111")
+            data_dict = {}
+            # data_dict["name"] = temp_list[i].split(':')[0]
+            # data_dict["Input_flow"] = str(float(temp_list[i].split()[1])/1000) + "KB"
+            # data_dict["Input_package"] = temp_list[i].split()[3]
+            # data_dict["Input_sum_package"] = int(temp_list[i].split()[2]) + int(temp_list[i].split()[3])
+            # data_dict["output_flow"] = str(float(temp_list[i].split()[9])/1000) + "KB"
+            # data_dict["output_package"] = temp_list[i].split()[11]
+            # data_dict["output_sum_package"] = int(temp_list[i].split()[10])  + int(temp_list[i].split()[11])
+            # data_dict["sum_flow"] = str(float((temp_list[i].split()[1] + temp_list[i].split()[9]))/1000) + "KB"
+            carddict["tableData"].append(data_dict)
     return carddict
 
-monitor_urls = [
-    (r"/v1/monitor/serInfo/", MonitorHandler),
-]
+
+monitor_urls = [(r"/v1/monitor/serInfo/", MonitorHandler),]
 
 if __name__ == "__main__":
     pass

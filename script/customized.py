@@ -114,7 +114,7 @@ class Customized_list(BaseHandler):
         if len(customizedList_date) > 0:
             for db_title,db_id, db_cycle, db_time, db_download_dir,start_end in customizedList_date:
                 if len(str(start_end)) == 8 or len(str(start_end)) == 2:
-                    if str(db_cycle) == '[]':  # 当没有选择执行周期
+                    if str(db_cycle) == '[]' or len(str(db_cycle)) == 0:  # 当没有选择执行周期
                         if str(temp_time) == str(db_time):  # 当前需要执行的sql
                             all_customized_list.append(
                                 [db_title,  db_id, db_cycle, db_download_dir, db_time])
@@ -124,7 +124,7 @@ class Customized_list(BaseHandler):
                                 [db_title, db_id, db_cycle, db_download_dir, db_time])
                 else:
                     if int(start_end[2:12].replace('-', '')) <= int(temp_time_date) and int(temp_time_date) <= int(start_end[16:26].replace('-', '')):
-                        if str(db_cycle) == '[]':  # 当没有选择执行周期
+                        if str(db_cycle) == '[]' or len(str(db_cycle)) == 0:  # 当没有选择执行周期
                             if str(temp_time) == str(db_time):  # 当前需要执行的sql
                                 all_customized_list.append(
                                     [db_title,  db_id, db_cycle, db_download_dir, db_time])
