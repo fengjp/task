@@ -81,7 +81,7 @@ class CertDataFileHandler(BaseHandler):
                 conditions = []
                 conditions.append(CertDataUpLoadLog.create_time >= start_date_str)
                 conditions.append(CertDataUpLoadLog.create_time <= end_date_str)
-                count = session.query(CertDataUpLoadLog).filter(*conditions).count()
+                #count = session.query(CertDataUpLoadLog).filter(*conditions).count()
                 query_info = session.query(CertDataUpLoadLog).filter(*conditions).order_by(
                     CertDataUpLoadLog.id.desc()).all()
 
@@ -122,18 +122,18 @@ class CertDataFileHandler(BaseHandler):
                 conditions = []
                 conditions.append(CertDataUpLoadError.create_time >= start_date_str)
                 conditions.append(CertDataUpLoadError.create_time <= end_date_str)
-                count = session.query(CertDataUpLoadError).filter(*conditions).count()
+                #count = session.query(CertDataUpLoadError).filter(*conditions).count()
                 query_info = session.query(CertDataUpLoadError).filter(*conditions).order_by(
-                    CertDataUpLoadError.id.desc()).all()
+                    CertDataUpLoadError.id.desc()).offset(0).limit(1000).all()
 
         if key == 'DownLoadError':
             with DBContext('r') as session:
                 conditions = []
                 conditions.append(CertDataDownLoadError.create_time >= start_date_str)
                 conditions.append(CertDataDownLoadError.create_time <= end_date_str)
-                count = session.query(CertDataDownLoadError).filter(*conditions).count()
+                #count = session.query(CertDataDownLoadError).filter(*conditions).count()
                 query_info = session.query(CertDataDownLoadError).filter(*conditions).order_by(
-                    CertDataDownLoadError.id.desc()).all()
+                    CertDataDownLoadError.id.desc()).offset(0).limit(1000).all()
 
         for msg in query_info:
             if key == 'UpLoadLog':
