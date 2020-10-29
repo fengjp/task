@@ -160,7 +160,7 @@ class QueryConfForshowFileHandler(BaseHandler):
             tids = [d['id'] for d in json.loads(value)]
         except:
             tids = []
-        ins_log.read_log('info', tids)
+        # ins_log.read_log('info', tids)
         with DBContext('r') as session:
             if key and value and key != 'tid':
                 count = session.query(CustomQuery).filter_by(**{key: value}).count()
