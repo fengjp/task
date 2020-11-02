@@ -37,8 +37,8 @@ class CertDataFileHandler(BaseHandler):
                 conditions.append(CertDataUpLoadLog.create_time <= end_date_str)
                 today_send = session.query(func.sum(CertDataUpLoadLog.success)).filter(*conditions).scalar()
                 all_send = session.query(func.sum(CertDataUpLoadLog.total)).scalar()
-                resdata['sumUpLoad'] = int(all_send)
-                resdata['todayUpLoad'] = int(today_send)
+                resdata['sumUpLoad'] = int(all_send) if all_send else 0
+                resdata['todayUpLoad'] = int(today_send) if today_send else 0
                 resdata['todayDownLoad'] = 0
 
                 try:
