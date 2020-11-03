@@ -63,7 +63,7 @@ class CertDataFileHandler(BaseHandler):
                     db_obj['user'] = ''
                     db_obj['passwd'] = ''
                     db_obj['db'] = 'cspt'
-                    db_list = ['bj_zhpt', 'bj_sgjj', 'bj_zhpt']
+                    db_list = ['bj_zhpt', 'bj_sgjj', 'bj_ddzxc']
                     for d in db_list:
                         db_obj['user'] = d
                         db_obj['passwd'] = d
@@ -107,7 +107,7 @@ class CertDataFileHandler(BaseHandler):
                 db_obj['user'] = ''
                 db_obj['passwd'] = ''
                 db_obj['db'] = 'cspt'
-                db_list = ['bj_zhpt', 'bj_sgjj', 'bj_zhpt']
+                db_list = ['bj_zhpt', 'bj_sgjj', 'bj_ddzxc']
                 for d in db_list:
                     db_obj['user'] = d
                     db_obj['passwd'] = d
@@ -147,7 +147,7 @@ class CertDataFileHandler(BaseHandler):
 
             if key == 'DownLoadLog':
                 data_dict = {}
-                data_dict['create_time'] = msg[0]
+                data_dict['create_time'] = str(msg[0])
                 data_dict['cd_batch'] = msg[1]
                 data_dict['error_msg'] = msg[2]
                 dict_list.append(data_dict)
