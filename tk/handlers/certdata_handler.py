@@ -37,8 +37,8 @@ class CertDataFileHandler(BaseHandler):
                 conditions.append(CertDataUpLoadLog.create_time <= end_date_str)
                 today_send = session.query(func.sum(CertDataUpLoadLog.success)).filter(*conditions).scalar()
                 all_send = session.query(func.sum(CertDataUpLoadLog.total)).scalar()
-                resdata['sumUpLoad'] = int(all_send)
-                resdata['todayUpLoad'] = int(today_send)
+                resdata['sumUpLoad'] = int(all_send) if all_send else 0
+                resdata['todayUpLoad'] = int(today_send) if today_send else 0
                 resdata['todayDownLoad'] = 0
 
                 try:
@@ -63,7 +63,7 @@ class CertDataFileHandler(BaseHandler):
                     db_obj['user'] = ''
                     db_obj['passwd'] = ''
                     db_obj['db'] = 'cspt'
-                    db_list = ['bj_zhpt', 'bj_sgjj', 'bj_zhpt']
+                    db_list = ['bj_zhpt', 'bj_sgjj', 'bj_ddzxc']
                     for d in db_list:
                         db_obj['user'] = d
                         db_obj['passwd'] = d
@@ -107,7 +107,7 @@ class CertDataFileHandler(BaseHandler):
                 db_obj['user'] = ''
                 db_obj['passwd'] = ''
                 db_obj['db'] = 'cspt'
-                db_list = ['bj_zhpt', 'bj_sgjj', 'bj_zhpt']
+                db_list = ['bj_zhpt', 'bj_sgjj', 'bj_ddzxc']
                 for d in db_list:
                     db_obj['user'] = d
                     db_obj['passwd'] = d
@@ -147,7 +147,7 @@ class CertDataFileHandler(BaseHandler):
 
             if key == 'DownLoadLog':
                 data_dict = {}
-                data_dict['create_time'] = msg[0]
+                data_dict['create_time'] = str(msg[0])
                 data_dict['cd_batch'] = msg[1]
                 data_dict['error_msg'] = msg[2]
                 dict_list.append(data_dict)
