@@ -27,6 +27,8 @@ class CustomizedHandler(BaseHandler):
           "dbid" : '',
           "times" : '',
           "cycle" : '',
+          "flag":'',
+          "todate":'',
           "start_end": '',
           "download_dir" : 'xunjian',
         },]
@@ -50,6 +52,8 @@ class CustomizedHandler(BaseHandler):
             Customizationlist_dict["dbid"] = data_dict["dbid"]
             Customizationlist_dict["times"] = data_dict["times"]
             Customizationlist_dict["cycle"] = str(data_dict["cycle"])
+            Customizationlist_dict["flag"] = str(data_dict["flag"])
+            Customizationlist_dict["todate"] = str(data_dict["todate"])
             Customizationlist_dict["start_end"] = str(data_dict["start_end"])
             Customizationlist_dict["download_dir"] = data_dict["download_dir"]
 
@@ -66,6 +70,8 @@ class CustomizedHandler(BaseHandler):
         dbid = str(data.get('dbid', None))
         times = data.get('times', None)
         cycle = str(data.get('cycle', None))
+        flag = str(data.get('flag', None))
+        todate = str(data.get('todate', None))
         start_end = str(data.get('start_end', None))
         now_time = str(datetime.now().strftime('%Y%m%d%H%M%S'))
         download_dir = "timing" + now_time
@@ -77,6 +83,8 @@ class CustomizedHandler(BaseHandler):
                 dbid=dbid,
                 times=times,
                 cycle=cycle,
+                flag=flag,
+                todate=todate,
                 start_end=start_end,
                 download_dir=download_dir,
             ))
@@ -113,9 +121,12 @@ class CustomizedHandler(BaseHandler):
         dbid = str(data.get('dbid', None))
         times = data.get('times', None)
         cycle = str(data.get('cycle', None))
+        flag = str(data.get('flag', None))
+        todate = str(data.get('todate', None))
         start_end  =  str(data.get('start_end', None))
         download_dir = str(data.get('download_dir', None))
-        # ins_log.read_log('info',totitle)
+        ins_log.read_log('info',flag)
+        ins_log.read_log('info', todate)
 
         try:
             with DBContext('w', None, True) as session:
@@ -124,6 +135,8 @@ class CustomizedHandler(BaseHandler):
                 Customized.dbid: dbid,
                 Customized.times: times,
                 Customized.cycle: cycle,
+                Customized.flag: flag,
+                Customized.todate: todate,
                 Customized.start_end: start_end,
                 Customized.download_dir: download_dir,
                 })

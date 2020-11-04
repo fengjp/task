@@ -53,6 +53,8 @@ class Customized(Base):
     dbid = Column('dbid', String(50), ) #数据库脚本id
     cycle  = Column('cycle', String(50), ) #周期
     times = Column('times', String(20)) #执行时间
+    flag = Column('flag', String(20))
+    todate = Column('todate',String(100))
     download_dir = Column('download_dir', String(50)) #文件目录
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
     start_end=  Column('start_end', String(50), )
