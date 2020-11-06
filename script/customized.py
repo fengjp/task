@@ -96,7 +96,7 @@ class Customized_list(BaseHandler):
         sql_str = "select totitle,dbid,cycle,times,download_dir,start_end  from  customizedList"
         customizedList_date = getdatebase("codo_task", sql_str)  # 执行时间表
         sql_str = ""
-        sql_str = "select id,header,dbname_id,totype,sqlstr  from  asset_sql   where   totype='sql定时'"
+        sql_str = "select id,header,dbname_id,totype,sqlstr  from  asset_sql   where   totype='sql'"
         AssetSql_date = getdatebase("codo_cmdb", sql_str)  # sql语句表
         sql_str = ""
         sql_str = "select id,db_host,db_port,db_user,db_pwd,db_type,db_instance  from  asset_db"
