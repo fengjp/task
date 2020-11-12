@@ -57,4 +57,7 @@ class Customized(Base):
     todate = Column('todate',String(100))
     download_dir = Column('download_dir', String(50)) #文件目录
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
-    start_end=  Column('start_end', String(50), )
+    start_end=  Column('start_end', String(50))
+
+
+
