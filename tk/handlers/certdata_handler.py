@@ -142,6 +142,7 @@ class CertDataFileHandler(BaseHandler):
                 data_dict['success'] = msg.success
                 data_dict['topic'] = msg.topic
                 data_dict['failed'] = msg.failed
+                data_dict['extra'] = msg.extra if msg.extra else ''
                 data_dict['create_time'] = str(msg.create_time)
                 dict_list.append(data_dict)
 

@@ -28,6 +28,7 @@ class CertDataUpLoadLog(Base):
     total = Column('total', Integer)  # 总数
     success = Column('success', Integer)  # 成功
     failed = Column('failed', Integer)  # 失败
+    extra = Column('extra', Text)   # 额外json数据
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
 
 class CertDataUpLoadError(Base):

@@ -99,14 +99,15 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                     for i in res:
                         _d = dict(zip(dict_key, i))
                         for selColObj in colalarms:
-                            # 判断指标值
+                            # 判断指标值 (同少取最少，同大取最大)
                             selCol = selColObj['selCol']
                             if selCol in _d:
                                 dbval = _d[selCol]
                                 if not dbval:
                                     dbval = 0
                                 subColList = selColObj['subColList']
-                                subColList = sorted(subColList, key=lambda x: x['alarmVal'], reverse=True)
+                                subColList = sorted(subColList, key=lambda x: TypeObj[x['alarmType']], reverse=True)
+                                # ins_log.read_log('info', subColList)
                                 for alarmObj in subColList:
                                     sign = alarmObj['sign']
                                     alarmVal = alarmObj['alarmVal']
@@ -116,6 +117,7 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                                         _d['target'] = alarmObj['alarmType']
                                     if sign == '>=' and dbval >= alarmVal:
                                         _d['target'] = alarmObj['alarmType']
+                                        break
                                     if sign == '<=' and dbval <= alarmVal:
                                         _d['target'] = alarmObj['alarmType']
                                     if sign == '=' and dbval == alarmVal:
