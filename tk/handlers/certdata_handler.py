@@ -114,6 +114,7 @@ class CertDataFileHandler(BaseHandler):
                     oracle_conn = OracleBase(**db_obj)
                     res = oracle_conn.query(sql)
                     query_info.extend(res)
+                query_info = query_info[0:100]
             except Exception as e:
                 ins_log.read_log('error', e)
 
@@ -124,7 +125,7 @@ class CertDataFileHandler(BaseHandler):
                 conditions.append(CertDataUpLoadError.create_time <= end_date_str)
                 #count = session.query(CertDataUpLoadError).filter(*conditions).count()
                 query_info = session.query(CertDataUpLoadError).filter(*conditions).order_by(
-                    CertDataUpLoadError.id.desc()).offset(0).limit(1000).all()
+                    CertDataUpLoadError.id.desc()).offset(0).limit(100).all()
 
         if key == 'DownLoadError':
             with DBContext('r') as session:
@@ -133,7 +134,7 @@ class CertDataFileHandler(BaseHandler):
                 conditions.append(CertDataDownLoadError.create_time <= end_date_str)
                 #count = session.query(CertDataDownLoadError).filter(*conditions).count()
                 query_info = session.query(CertDataDownLoadError).filter(*conditions).order_by(
-                    CertDataDownLoadError.id.desc()).offset(0).limit(1000).all()
+                    CertDataDownLoadError.id.desc()).offset(0).limit(100).all()
 
         for msg in query_info:
             if key == 'UpLoadLog':
@@ -142,7 +143,7 @@ class CertDataFileHandler(BaseHandler):
                 data_dict['success'] = msg.success
                 data_dict['topic'] = msg.topic
                 data_dict['failed'] = msg.failed
-                data_dict['extra'] = msg.extra if msg.extra else ''
+                data_dict['extra'] = json.loads(msg.extra) if msg.extra else ''
                 data_dict['create_time'] = str(msg.create_time)
                 dict_list.append(data_dict)
 
