@@ -48,7 +48,7 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             CUSTOM_DB_INFO['db'] = 'codo_cmdb'
             mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
             # 获取数据库源 连接地址
-            select_db = 'select db_type, db_host, db_port, db_user, db_pwd from asset_db where id = {}'.format(dblinkId)
+            select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(dblinkId)
             db_info = mysql_conn.query(select_db)
         except:
             errormsg = '获取数据库源连接信息失败'
@@ -61,7 +61,10 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             db_obj['port'] = int(db[2])
             db_obj['user'] = db[3]
             db_obj['passwd'] = decrypt(db[4])
-            db_obj['db'] = query_info.database
+            if query_info.database:
+                db_obj['db'] = query_info.database
+            else:
+                db_obj['db'] = db[5]
             sql = query_info.sql
 
             if query_info.user:
