@@ -33,6 +33,18 @@ class CustomQuery(Base):
     status = Column('status', String(5), default='1')  # 状态
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
     update_time = Column('update_time', DateTime(), default=datetime.now, onupdate=datetime.now)  # 记录更新时间
+    description = Column('description', Text, default='')  # 描述
+    seq = Column('seq', Integer)  # 序号
+    groupID = Column('groupID', String(255), default='')  # 层级组ID
+
+
+class CustomGroup(Base):
+    __tablename__ = 'custom_group'
+
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    groupName = Column('groupName', String(50), default='')  # 组名
+    grouptype = Column('grouptype', Integer)  # 类型 1：一级分组。 2：二级分组
+    groupSeq = Column('groupSeq', Integer)  # 排序号
 
 
 class CustomTmp(Base):
@@ -50,14 +62,11 @@ class Customized(Base):
 
     id = Column('id', Integer, primary_key=True, autoincrement=True)
     totitle = Column('totitle', String(1500))  # 标题
-    dbid = Column('dbid', String(50), ) #数据库脚本id
-    cycle  = Column('cycle', String(50), ) #周期
-    times = Column('times', String(20)) #执行时间
+    dbid = Column('dbid', String(50), )  # 数据库脚本id
+    cycle = Column('cycle', String(50), )  # 周期
+    times = Column('times', String(20))  # 执行时间
     flag = Column('flag', String(20))
-    todate = Column('todate',String(100))
-    download_dir = Column('download_dir', String(50)) #文件目录
+    todate = Column('todate', String(100))
+    download_dir = Column('download_dir', String(50))  # 文件目录
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
-    start_end=  Column('start_end', String(50))
-
-
-
+    start_end = Column('start_end', String(50))

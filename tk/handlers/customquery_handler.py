@@ -9,7 +9,7 @@ from websdk.consts import const
 from websdk.cache_context import cache_conn
 from websdk.web_logs import ins_log
 from sqlalchemy import or_, and_
-from models.task import model_to_dict, CustomQuery, CustomTmp
+from models.task import model_to_dict, CustomQuery, CustomTmp, CustomGroup
 from libs.mysql_conn import MysqlBase
 from libs.oracle_conn import OracleBase
 from settings import CUSTOM_DB_INFO
@@ -48,7 +48,8 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             CUSTOM_DB_INFO['db'] = 'codo_cmdb'
             mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
             # 获取数据库源 连接地址
-            select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(dblinkId)
+            select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(
+                dblinkId)
             db_info = mysql_conn.query(select_db)
         except:
             errormsg = '获取数据库源连接信息失败'
@@ -131,7 +132,6 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                         # ins_log.read_log('info', _d)
                         dict_list.append(_d)
 
-
                     if len(colalarms) > 0:
                         dict_list.sort(key=lambda x: TypeObj[x['target']], reverse=True)
                         countObj = dict(Counter([i['target'] for i in dict_list]))
@@ -189,9 +189,32 @@ class QueryConfForshowFileHandler(BaseHandler):
             data_dict['title'] = msg.title
             data_dict['timesTy'] = msg.timesTy
             data_dict['timesTyVal'] = msg.timesTyVal
+            data_dict['seq'] = msg.seq
+            data_dict['groupID'] = json.loads(msg.groupID) if msg.groupID else []
+            data_dict['group1stNa'] = self.getGroupInfo(data_dict['groupID'][0])[0]
+            data_dict['group1stSeq'] = self.getGroupInfo(data_dict['groupID'][0])[1]
+            data_dict['group2ndNa'] = self.getGroupInfo(data_dict['groupID'][1])[0]
+            data_dict['group2ndSeq'] = self.getGroupInfo(data_dict['groupID'][1])[1]
             dict_list.append(data_dict)
+            dict_list.sort(key=lambda x: x['seq'])
 
-        return self.write(dict(code=0, msg='获取成功', data=dict_list, count=count))
+        return self.write(dict(code=0, msg='获取成功', data=dict_list))
+
+    def getGroupInfo(self, gid):
+        name = ''
+        seq = -1
+        try:
+            with DBContext('r') as session:
+                groupName = session.query(CustomGroup.groupName, CustomGroup.groupSeq).filter(
+                    CustomGroup.id == int(gid)).all()
+                if len(groupName) > 0:
+                    # ins_log.read_log('info', groupName)
+                    name = groupName[0][0]
+                    seq = groupName[0][1]
+        except:
+            name = ''
+            seq = -1
+        return [name, seq]
 
 
 class QueryConfFileHandler(BaseHandler):
@@ -243,10 +266,22 @@ class QueryConfFileHandler(BaseHandler):
                     data_dict['timesTy2Val'] = data_dict['timesTyVal']
 
                 data_dict['dblinkIdNa'] = db_obj.get(data_dict['dblinkId'], '')
-
+                groupID = json.loads(data_dict['groupID']) if data_dict['groupID'] else ''
+                data_dict['group1stID'] = groupID[0] if groupID else -1
+                data_dict['group2ndID'] = groupID[1] if groupID else -1
+                data_dict['group1stSeq'] = self.getGroupSeq(data_dict['group1stID'])
+                data_dict['group2ndSeq'] = self.getGroupSeq(data_dict['group2ndID'])
                 dict_list.append(data_dict)
 
         return self.write(dict(code=0, msg='获取成功', data=dict_list, count=count))
+
+    def getGroupSeq(self, gid):
+        seq = -1
+        with DBContext('r') as session:
+            groupSeq = session.query(CustomGroup.groupSeq).filter(CustomGroup.id == int(gid)).all()
+            if len(groupSeq) > 0:
+                seq = groupSeq[0][0]
+        return seq
 
     def post(self):
         data = json.loads(self.request.body.decode("utf-8"))
@@ -261,6 +296,12 @@ class QueryConfFileHandler(BaseHandler):
         colalarms = data.get('colalarms')
         user = data.get('user')
         password = data.get('password')
+        description = data.get('description')
+        seq = data.get('seq')
+        group1stID = data.get('group1stID')
+        group2ndID = data.get('group2ndID')
+        group1stSeq = data.get('group1stSeq')
+        group2ndSeq = data.get('group2ndSeq')
 
         if timesTy == 'timesTy1':
             timesTyVal = timesTy1Val
@@ -276,6 +317,11 @@ class QueryConfFileHandler(BaseHandler):
         if exist_id:
             return self.write(dict(code=-2, msg='不要重复记录'))
 
+        if group1stID and group2ndID:
+            groupID = json.dumps([group1stID, group2ndID])
+        else:
+            groupID = ''
+
         # 加密密码
         password = encrypt(password)
 
@@ -284,11 +330,23 @@ class QueryConfFileHandler(BaseHandler):
         with DBContext('w', None, True) as session:
             new_query = CustomQuery(title=title, dblinkId=int(dblinkId), database=database, sql=sql,
                                     colnames=json.dumps(colnames), timesTy=timesTy, timesTyVal=timesTyVal,
-                                    colalarms=json.dumps(colalarms), user=user, password=password
+                                    colalarms=json.dumps(colalarms), user=user, password=password,
+                                    description=description, seq=seq, groupID=groupID,
                                     )
             session.add(new_query)
 
+        # 更新分组排序号
+        self.updateGroupSeq(group1stID, group1stSeq)
+        self.updateGroupSeq(group2ndID, group2ndSeq)
+
         return self.write(dict(code=0, msg='添加成功'))
+
+    def updateGroupSeq(self, gid, seq):
+        with DBContext('w', None, True) as session:
+            session.query(CustomGroup).filter(CustomGroup.id == int(gid)).update(
+                {
+                    CustomGroup.groupSeq: seq,
+                }, )
 
     def put(self):
         data = json.loads(self.request.body.decode("utf-8"))
@@ -304,6 +362,12 @@ class QueryConfFileHandler(BaseHandler):
         colalarms = data.get('colalarms')
         user = data.get('user')
         password = data.get('password')
+        description = data.get('description')
+        seq = data.get('seq')
+        group1stID = data.get('group1stID')
+        group2ndID = data.get('group2ndID')
+        group1stSeq = data.get('group1stSeq')
+        group2ndSeq = data.get('group2ndSeq')
 
         if timesTy == 'timesTy1':
             timesTyVal = timesTy1Val
@@ -317,6 +381,11 @@ class QueryConfFileHandler(BaseHandler):
             old_password = session.query(CustomQuery.password).filter(CustomQuery.id == int(queryId)).first()[0]
             # ins_log.read_log('info', old_password)
 
+        if group1stID and group2ndID:
+            groupID = json.dumps([group1stID, group2ndID])
+        else:
+            groupID = ''
+
         if old_password != password:
             # 加密密码
             password = encrypt(password)
@@ -327,8 +396,13 @@ class QueryConfFileHandler(BaseHandler):
                  CustomQuery.database: database, CustomQuery.sql: sql,
                  CustomQuery.colnames: json.dumps(colnames), CustomQuery.timesTy: timesTy,
                  CustomQuery.timesTyVal: timesTyVal, CustomQuery.colalarms: json.dumps(colalarms),
-                 CustomQuery.user: user, CustomQuery.password: password,
+                 CustomQuery.user: user, CustomQuery.password: password, CustomQuery.description: description,
+                 CustomQuery.seq: seq, CustomQuery.groupID: groupID,
                  }, )
+
+        # 更新分组排序号
+        self.updateGroupSeq(group1stID, group1stSeq)
+        self.updateGroupSeq(group2ndID, group2ndSeq)
 
         return self.write(dict(code=0, msg='编辑成功'))
 
@@ -454,12 +528,92 @@ class TmpFileHandler(BaseHandler):
         self.write(dict(code=0, msg='删除成功'))
 
 
+class GroupHandler(BaseHandler):
+    def get(self, *args, **kwargs):
+        key = self.get_argument('key', default=None, strip=True)
+        value = self.get_argument('value', default=None, strip=True)
+        groupObj = {}
+        data_dict = []
+        with DBContext('r') as session:
+            group_info = session.query(CustomGroup).all()
+
+        for msg in group_info:
+            if msg.grouptype not in groupObj:
+                groupObj[msg.grouptype] = []
+
+            _d = {}
+            _d['id'] = msg.id
+            _d['name'] = msg.groupName
+            groupObj[msg.grouptype].append(_d)
+
+            _d = {}
+            _d['id'] = msg.id
+            _d['groupName'] = msg.groupName
+            _d['grouptype'] = msg.grouptype
+            _d['groupSeq'] = msg.groupSeq
+            data_dict.append(_d)
+
+        return self.write(dict(code=0, msg='获取成功', groupObj=groupObj, data=data_dict))
+
+    def post(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        groupName = data.get('groupName')
+        grouptype = data.get('grouptype')
+        groupSeq = data.get('groupSeq', 0)
+
+        with DBContext('r') as session:
+            exist_id = session.query(CustomGroup.id).filter(CustomGroup.groupName == groupName).first()
+
+        if exist_id:
+            return self.write(dict(code=-1, msg='组名重复'))
+
+        with DBContext('w', None, True) as session:
+            new_g = CustomGroup(
+                groupName=groupName, grouptype=grouptype, groupSeq=groupSeq
+            )
+            session.add(new_g)
+
+        return self.write(dict(code=0, msg='添加成功'))
+
+    def put(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        tid = data.get('id')
+        groupName = data.get('groupName')
+        grouptype = data.get('grouptype')
+        groupSeq = data.get('groupSeq')
+
+        with DBContext('w', None, True) as session:
+            session.query(CustomGroup).filter(CustomGroup.id == int(tid)).update(
+                {
+                    CustomGroup.groupName: groupName,
+                    CustomGroup.grouptype: grouptype,
+                    CustomGroup.groupSeq: groupSeq,
+                }, )
+
+        return self.write(dict(code=0, msg='编辑成功'))
+
+    def delete(self, *args, **kwargs):
+        data = json.loads(self.request.body.decode("utf-8"))
+        id = data.get('id')
+
+        with DBContext('w', None, True) as session:
+            if id:
+                session.query(CustomGroup).filter(CustomGroup.id == id).delete(synchronize_session=False)
+                session.commit()
+            else:
+                return self.write(dict(code=1, msg='id不能为空'))
+
+        self.write(dict(code=0, msg='删除成功'))
+
+
 customquery_urls = [
     (r"/v1/queryConf/", QueryConfFileHandler),
     (r"/v1/queryConfForshow/", QueryConfForshowFileHandler),
     (r"/v1/queryConf/do_sql/", QueryConfDoSqlFileHandler),
     (r"/v1/operationtmp/", TmpFileHandler),
     (r"/v1/gettmp/", TmpFileHandler),
+    (r"/v1/operationgroup/", GroupHandler),
+    (r"/v1/getgroup/", GroupHandler),
 ]
 
 if __name__ == "__main__":
