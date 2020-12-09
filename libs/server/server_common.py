@@ -8,7 +8,8 @@ from libs.mysql_conn import MysqlBase
 from websdk.web_logs import ins_log
 from libs.aes_coder import decrypt
 
-def get_serverObjList(ip_list):
+
+def get_serverObjList(ip_list=[]):
     """
     :return: [{"ip": "39.104.83.140", "port": "22", "username": "root", "password": "asdqwe123."}]
     """
@@ -16,10 +17,16 @@ def get_serverObjList(ip_list):
 
     CUSTOM_DB_INFO['db'] = 'codo_cmdb'
     mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
-    sql = '''
-        select a.ip,a.`port`,b.system_user,b.`password` from asset_server a,admin_users b 
-        where a.admin_user = b.admin_user and a.ip in ("{}")
-    '''.format('","'.join(ip_list))
+    if len(ip_list) > 0:
+        sql = '''
+            select a.ip,a.`port`,b.system_user,b.`password` from asset_server a,admin_users b 
+            where a.admin_user = b.admin_user and a.ip in ("{}")
+        '''.format('","'.join(ip_list))
+    else:
+        sql = '''
+              select a.ip,a.`port`,b.system_user,b.`password` from asset_server a,admin_users b 
+              where a.admin_user = b.admin_user
+        '''
     server_info = mysql_conn.query(sql)
     for ip, port, username, password in server_info:
         data = {}
@@ -33,4 +40,4 @@ def get_serverObjList(ip_list):
 
 
 if __name__ == '__main__':
-    print(get_serverObjList(['127.0.0.1', '39.104.83.140']))
+    print(get_serverObjList([]))
