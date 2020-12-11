@@ -318,10 +318,10 @@ class QueryConfFileHandler(BaseHandler):
         if exist_id:
             return self.write(dict(code=-2, msg='不要重复记录'))
 
-        if group1stID and group2ndID:
+        if group1stID != '' and group2ndID != '':
             groupID = json.dumps([group1stID, group2ndID])
         else:
-            groupID = ''
+            groupID = [0, 0]
 
         # 加密密码
         password = encrypt(password)
@@ -382,10 +382,10 @@ class QueryConfFileHandler(BaseHandler):
             old_password = session.query(CustomQuery.password).filter(CustomQuery.id == int(queryId)).first()[0]
             # ins_log.read_log('info', old_password)
 
-        if group1stID and group2ndID:
+        if group1stID != '' and group2ndID != '':
             groupID = json.dumps([group1stID, group2ndID])
         else:
-            groupID = ''
+            groupID = [0, 0]
 
         if old_password != password:
             # 加密密码
