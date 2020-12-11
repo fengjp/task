@@ -69,7 +69,7 @@ class CustomizedHandler(BaseHandler):
         totitle = str(data.get('title', None))
         dbid = str(data.get('dbid', None))
         times = data.get('times', None)
-        cycle = str(data.get('cycle', None))
+        cycle = str(data.get('cycle', '[]'))
         flag = str(data.get('flag', None))
         todate = str(data.get('todate', None))
         start_end = str(data.get('start_end', None))

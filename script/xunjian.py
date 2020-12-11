@@ -118,7 +118,7 @@ def getdatebase(ipstr):
 
 def timeflag():
     nowTime = datetime.datetime.now().strftime('%H:%M:%S')  # 现在
-    if int(nowTime.split(':')[0]) < 19:
+    if int(nowTime.split(':')[0]) < 18:
         return 1
     else:
         return 0
@@ -137,48 +137,50 @@ def run():
         df = pd.read_excel(file_path)
     sumint = len(df.index)
     print(sumint)
-    df.rename(columns={'Unnamed: 0': '', 'Unnamed: 2': '', 'Unnamed: 3': '', 'Unnamed: 4': '', 'Unnamed: 5': '',
+    df.rename(columns={'Unnamed: 0': '','Unnamed: 1': '', 'Unnamed: 2': '', 'Unnamed: 3': '', 'Unnamed: 4': '', 'Unnamed: 5': '',
                        'Unnamed: 6': ''}, inplace=True)
     for i in range(3, 30):
-        data = df.iloc[i, 3]
+        data = df.iloc[i, 2]
+        if str(data) == "nan":
+           continue
         if data.split(':')[0] == "http" or data.split(':')[0] == "https":
             # requese请求url,判断是否异常
             try:
                 code = gethttp(data)
                 if code == 200:
                     if timeflag():
-                        df.iloc[i, 4] = "正常"
+                        df.iloc[i, 3] = "正常"
                     else:
-                        df.iloc[i, 5] = "正常"
+                        df.iloc[i, 4] = "正常"
                 else:
                     if timeflag():
-                        df.iloc[i, 4] = "异常"
+                        df.iloc[i, 3] = "异常"
                     else:
-                        df.iloc[i, 5] = "异常"
+                        df.iloc[i, 4] = "异常"
             except:
                 if timeflag():
-                    df.iloc[i, 4] = "异常"
+                    df.iloc[i, 3] = "异常"
                 else:
-                    df.iloc[i, 5] = "异常"
+                    df.iloc[i, 4] = "异常"
                 continue
         elif data.split(':')[0] == "ftp":
             # ftp请求测试，判断是否异常
             if getftp(data):
                 if timeflag():
-                    df.iloc[i, 4] = "正常"
+                    df.iloc[i, 3] = "正常"
                 else:
-                    df.iloc[i, 5] = "正常"
+                    df.iloc[i, 4] = "正常"
             else:
                 if timeflag():
-                    df.iloc[i, 4] = "异常"
+                    df.iloc[i, 3] = "异常"
                 else:
-                    df.iloc[i, 5] = "异常"
+                    df.iloc[i, 4] = "异常"
                 continue
     # 数据库
     for j in range(34, 44):
         ipdict = []
-        toname = df.iloc[j, 1]
-        toip = df.iloc[j, 2]
+        toname = df.iloc[j, 0]
+        toip = df.iloc[j, 1]
         ipdict.append((toname, toip))
         flag, tempdata = getdatebase(ipdict)
         print(flag)
@@ -186,16 +188,16 @@ def run():
         print(tempstr)
         if 0 in flag:
             if timeflag():
-                df.iloc[j, 4] = "异常"
+                df.iloc[j, 3] = "异常"
             else:
-                df.iloc[j, 5] = "异常"
-            df.iloc[j, 6] = tempstr
+                df.iloc[j, 4] = "异常"
+            df.iloc[j, 5] = tempstr
         else:
             if timeflag():
-                df.iloc[j, 4] = "正常"
+                df.iloc[j, 3] = "正常"
             else:
-                df.iloc[j, 5] = "正常"
-            df.iloc[j, 6] = tempstr
+                df.iloc[j, 4] = "正常"
+            df.iloc[j, 5] = tempstr
     # 保存文件
     Base_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     upload_path = '{}/static/report/xunjian/系统巡检报告'.format(Base_DIR)

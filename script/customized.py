@@ -93,10 +93,10 @@ class Customized_list(BaseHandler):
         # 定时表数据
         temp_dict = {}
         sql_str = ""
-        sql_str = "select totitle,dbid,cycle,times,download_dir,start_end  from  customizedList"
+        sql_str = "select totitle,dbid,cycle,times,download_dir,start_end,flag,todate  from  customizedList"
         customizedList_date = getdatebase("codo_task", sql_str)  # 执行时间表
         sql_str = ""
-        sql_str = "select id,header,dbname_id,totype,sqlstr  from  asset_sql   where   totype='sql'"
+        sql_str = "select id,header,dbname_id,totype,sqlstr  from  asset_sql   where   totype='sql' and  mode='定时' and  state='运行'"
         AssetSql_date = getdatebase("codo_cmdb", sql_str)  # sql语句表
         sql_str = ""
         sql_str = "select id,db_host,db_port,db_user,db_pwd,db_type,db_instance  from  asset_db"
@@ -109,11 +109,19 @@ class Customized_list(BaseHandler):
         now = datetime.datetime.now()
         temp_time = now.strftime('%H:%M')
         temp_time_date = now.strftime('%Y%m%d')
+        today_str = now.strftime('%d')
         # 筛选当前要执行的sql
         all_customized_list = []
         if len(customizedList_date) > 0:
-            for db_title,db_id, db_cycle, db_time, db_download_dir,start_end in customizedList_date:
-                if len(str(start_end)) == 8 or len(str(start_end)) == 2:
+            for db_title,db_id, db_cycle, db_time, db_download_dir,start_end,flag,todate in customizedList_date:
+                if  str(flag) == "日期":
+                    if str(today_str)  in  eval(str(todate)):
+                        if str(temp_time) == str(db_time):  # 当前需要执行的sql
+                            all_customized_list.append([db_title,  db_id, db_cycle, db_download_dir, db_time])
+                            ins_log.read_log('info', "11111111111111111111111111111111111111")
+                            ins_log.read_log('info', today_str)
+                            ins_log.read_log('info', "11111111111111111111111111111111111111")
+                elif len(str(start_end)) == 8 or len(str(start_end)) == 2:
                     if str(db_cycle) == '[]' or len(str(db_cycle)) == 0:  # 当没有选择执行周期
                         if str(temp_time) == str(db_time):  # 当前需要执行的sql
                             all_customized_list.append(
