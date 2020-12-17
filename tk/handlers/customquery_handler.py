@@ -115,16 +115,16 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                                 for alarmObj in subColList:
                                     sign = alarmObj['sign']
                                     alarmVal = alarmObj['alarmVal']
-                                    if sign == '>' and dbval > alarmVal:
+                                    if sign == '>' and float(dbval) > float(alarmVal):
                                         _d['target'] = alarmObj['alarmType']
-                                    if sign == '<' and dbval < alarmVal:
+                                    if sign == '<' and float(dbval) < float(alarmVal):
                                         _d['target'] = alarmObj['alarmType']
-                                    if sign == '>=' and dbval >= alarmVal:
+                                    if sign == '>=' and float(dbval) >= float(alarmVal):
                                         _d['target'] = alarmObj['alarmType']
                                         break
-                                    if sign == '<=' and dbval <= alarmVal:
+                                    if sign == '<=' and float(dbval) <= float(alarmVal):
                                         _d['target'] = alarmObj['alarmType']
-                                    if sign == '=' and dbval == alarmVal:
+                                    if sign == '=' and float(dbval) == float(alarmVal):
                                         _d['target'] = alarmObj['alarmType']
 
                                     if 'target' not in _d:
@@ -143,6 +143,7 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                     dict_list = []
                     countObj = {}
                     errormsg = '字段格式错误'
+                    return self.write(dict(code=-2, msg='获取失败', errormsg=errormsg, data=[]))
 
                 # 转换 时间类型字段
                 for _d in dict_list:
@@ -317,10 +318,10 @@ class QueryConfFileHandler(BaseHandler):
         if exist_id:
             return self.write(dict(code=-2, msg='不要重复记录'))
 
-        if group1stID and group2ndID:
+        if group1stID != '' and group2ndID != '':
             groupID = json.dumps([group1stID, group2ndID])
         else:
-            groupID = ''
+            groupID = [0, 0]
 
         # 加密密码
         password = encrypt(password)
@@ -381,10 +382,10 @@ class QueryConfFileHandler(BaseHandler):
             old_password = session.query(CustomQuery.password).filter(CustomQuery.id == int(queryId)).first()[0]
             # ins_log.read_log('info', old_password)
 
-        if group1stID and group2ndID:
+        if group1stID != '' and group2ndID != '':
             groupID = json.dumps([group1stID, group2ndID])
         else:
-            groupID = ''
+            groupID = [0, 0]
 
         if old_password != password:
             # 加密密码

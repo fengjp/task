@@ -12,6 +12,8 @@ from ansible.executor.task_queue_manager import TaskQueueManager
 from ansible.plugins.callback import CallbackBase
 from ansible import context
 import ansible.constants as C
+
+C.HOST_KEY_CHECKING = False
 # 操作单个主机信息
 from ansible.inventory.host import Host
 # 操作单个主机组信息
@@ -52,6 +54,7 @@ class AnsiableAPI():
                  become_method=None,  # 提权方式 默认 sudo 可以是 su
                  become_user=None,  # 提权后，要成为的用户，并非登录用户
                  check=False, diff=False,
+                 host_key_checking=False,
                  listhosts=None, listtasks=None, listtags=None,
                  verbosity=3,
                  syntax=None,
@@ -316,4 +319,3 @@ if __name__ == '__main__':
 
     stdout_dict = json.loads(asb.get_result())
     print(stdout_dict)
-
