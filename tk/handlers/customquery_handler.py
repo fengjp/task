@@ -9,7 +9,7 @@ from websdk.consts import const
 from websdk.cache_context import cache_conn
 from websdk.web_logs import ins_log
 from sqlalchemy import or_, and_
-from models.task import model_to_dict, CustomQuery, CustomTmp, CustomGroup
+from models.task import model_to_dict, CustomQuery, CustomTmp, CustomGroup, CustomQuerySub, CustomZdLink
 from libs.mysql_conn import MysqlBase
 from libs.oracle_conn import OracleBase
 from settings import CUSTOM_DB_INFO
@@ -17,6 +17,7 @@ from libs.aes_coder import encrypt, decrypt
 from collections import Counter
 import traceback
 import datetime
+import requests
 
 # typeObj: [
 #     {'id': 0, 'name': '正常'},
@@ -32,6 +33,15 @@ TypeObj = {
     '严重': 2,
     '致命': 3,
 }
+
+
+def getzdlink(lkid):
+    zdlink = ''
+    with DBContext('r') as session:
+        res = session.query(CustomZdLink.link).filter(CustomZdLink.id == int(lkid)).all()
+        if len(res) > 0:
+            zdlink = res[0][0]
+    return zdlink
 
 
 class QueryConfDoSqlFileHandler(BaseHandler):
@@ -607,6 +617,420 @@ class GroupHandler(BaseHandler):
         self.write(dict(code=0, msg='删除成功'))
 
 
+class QuerySubConfHandler(BaseHandler):
+    def get(self, *args, **kwargs):
+        key = self.get_argument('key', default=None, strip=True)
+        value = self.get_argument('value', default=None, strip=True)
+        dict_list = []
+        with DBContext('r') as session:
+            if key and value and key != 'isTmp':
+                count = session.query(CustomQuerySub).filter_by(**{key: value}).count()
+                query_info = session.query(CustomQuerySub).filter_by(**{key: value}).order_by(
+                    CustomQuerySub.id.desc()).all()
+            else:
+                count = session.query(CustomQuerySub).count()
+                query_info = session.query(CustomQuerySub).order_by(CustomQuerySub.id.desc()).all()
+
+        for msg in query_info:
+            data_dict = model_to_dict(msg)
+            data_dict['colnames'] = json.loads((data_dict['colnames']))
+            data_dict['colalarms'] = json.loads((data_dict['colalarms']))
+            data_dict['create_time'] = str(data_dict['create_time'])
+            data_dict['update_time'] = str(data_dict['update_time'])
+            if data_dict['timesTy'] == 'timesTy1':
+                data_dict['timesTy1Val'] = data_dict['timesTyVal']
+            else:
+                data_dict['timesTy2Val'] = data_dict['timesTyVal']
+
+            data_dict['dblinkIdNa'] = ''
+            groupID = json.loads(data_dict['groupID']) if data_dict['groupID'] else ''
+            data_dict['group1stID'] = groupID[0] if groupID else -1
+            data_dict['group2ndID'] = groupID[1] if groupID else -1
+            data_dict['group1stSeq'] = 0
+            data_dict['zdlink'] = getzdlink(data_dict['zdlinkID'])
+            dict_list.append(data_dict)
+
+        return self.write(dict(code=0, msg='获取成功', data=dict_list, count=count))
+
+    def post(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        title = data.get('title')
+        dblinkId = data.get('dblinkId')
+        database = data.get('database')
+        sql = data.get('sql')
+        colnames = data.get('colnames')
+        timesTy = data.get('timesTy')
+        timesTy1Val = data.get('timesTy1Val')
+        timesTy2Val = data.get('timesTy2Val')
+        colalarms = data.get('colalarms')
+        user = data.get('user')
+        password = data.get('password')
+        description = data.get('description')
+        seq = data.get('seq')
+        group1stID = data.get('group1stID')
+        group2ndID = data.get('group2ndID')
+        group1stSeq = data.get('group1stSeq')
+        group2ndSeq = data.get('group2ndSeq')
+        zdlinkID = data.get('linkId')
+        groupName = data.get('groupName')
+
+        if timesTy == 'timesTy1':
+            timesTyVal = timesTy1Val
+        else:
+            timesTyVal = timesTy2Val
+
+        if not dblinkId:
+            dblinkId = -1
+
+        if not title:
+            return self.write(dict(code=-1, msg='标题不能为空'))
+
+        with DBContext('r') as session:
+            exist_id = session.query(CustomQuerySub.id).filter(CustomQuerySub.title == title).first()
+
+        if exist_id:
+            return self.write(dict(code=-2, msg='不要重复记录'))
+
+        if group1stID != '' and group2ndID != '':
+            groupID = json.dumps([group1stID, group2ndID])
+        else:
+            groupID = [0, 0]
+
+        # 加密密码
+        password = encrypt(password)
+
+        sql = re.sub('update|drop', '', sql, 0, re.I)
+
+        with DBContext('w', None, True) as session:
+            new_query = CustomQuerySub(title=title, dblinkId=dblinkId, database=database, sql=sql,
+                                       colnames=json.dumps(colnames), timesTy=timesTy, timesTyVal=timesTyVal,
+                                       colalarms=json.dumps(colalarms), user=user, password=password,
+                                       description=description, seq=seq, groupID=groupID, zdlinkID=zdlinkID,
+                                       groupName=groupName, group2ndSeq=group2ndSeq,
+                                       )
+            session.add(new_query)
+
+        return self.write(dict(code=0, msg='添加成功'))
+
+    def put(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        title = data.get('title')
+        dblinkId = data.get('dblinkId')
+        database = data.get('database')
+        sql = data.get('sql')
+        colnames = data.get('colnames')
+        timesTy = data.get('timesTy')
+        timesTy1Val = data.get('timesTy1Val')
+        timesTy2Val = data.get('timesTy2Val')
+        queryId = data.get('id')
+        colalarms = data.get('colalarms')
+        user = data.get('user')
+        password = data.get('password')
+        description = data.get('description')
+        seq = data.get('seq')
+        group1stID = data.get('group1stID')
+        group2ndID = data.get('group2ndID')
+        group1stSeq = data.get('group1stSeq')
+        group2ndSeq = data.get('group2ndSeq')
+        zdlinkID = data.get('linkId')
+        groupName = data.get('groupName')
+
+        if timesTy == 'timesTy1':
+            timesTyVal = timesTy1Val
+        else:
+            timesTyVal = timesTy2Val
+
+        if not title:
+            return self.write(dict(code=-1, msg='标题不能为空'))
+
+        with DBContext('r') as session:
+            old_password = session.query(CustomQuerySub.password).filter(CustomQuerySub.id == int(queryId)).first()[0]
+            # ins_log.read_log('info', old_password)
+
+        if group1stID != '' and group2ndID != '':
+            groupID = json.dumps([group1stID, group2ndID])
+        else:
+            groupID = [0, 0]
+
+        if old_password != password:
+            # 加密密码
+            password = encrypt(password)
+
+        with DBContext('w', None, True) as session:
+            session.query(CustomQuerySub).filter(CustomQuerySub.id == int(queryId)).update(
+                {CustomQuerySub.title: title, CustomQuerySub.dblinkId: int(dblinkId),
+                 CustomQuerySub.database: database, CustomQuerySub.sql: sql,
+                 CustomQuerySub.colnames: json.dumps(colnames), CustomQuerySub.timesTy: timesTy,
+                 CustomQuerySub.timesTyVal: timesTyVal, CustomQuerySub.colalarms: json.dumps(colalarms),
+                 CustomQuerySub.user: user, CustomQuerySub.password: password, CustomQuerySub.description: description,
+                 CustomQuerySub.seq: seq, CustomQuerySub.groupID: groupID, CustomQuerySub.zdlinkID: zdlinkID,
+                 CustomQuerySub.groupName: groupName,
+                 }, )
+
+        return self.write(dict(code=0, msg='编辑成功'))
+
+    def patch(self, *args, **kwargs):
+        """禁用、启用"""
+        data = json.loads(self.request.body.decode("utf-8"))
+        query_id = str(data.get('query_id', None))
+        msg = '不存在'
+
+        if not query_id:
+            return self.write(dict(code=-1, msg='不能为空'))
+
+        with DBContext('r') as session:
+            query_status = session.query(CustomQuerySub.status).filter(CustomQuerySub.id == query_id).first()
+
+        if not query_status:
+            return self.write(dict(code=-2, msg=msg))
+
+        if query_status[0] == '1':
+            msg = '禁用成功'
+            new_status = '0'
+
+        elif query_status[0] == '0':
+            msg = '启用成功'
+            new_status = '1'
+        else:
+            new_status = '1'
+
+        with DBContext('w', None, True) as session:
+            session.query(CustomQuerySub).filter(CustomQuerySub.id == query_id).update(
+                {CustomQuerySub.status: new_status})
+
+        return self.write(dict(code=0, msg=msg))
+
+    def delete(self, *args, **kwargs):
+        data = json.loads(self.request.body.decode("utf-8"))
+        id = data.get('id')
+
+        with DBContext('w', None, True) as session:
+            if id:
+                session.query(CustomQuerySub).filter(CustomQuerySub.id == id).delete(synchronize_session=False)
+                session.commit()
+            else:
+                return self.write(dict(code=1, msg='关键参数不能为空'))
+
+        self.write(dict(code=0, msg='删除成功'))
+
+
+class ZdLinkHandler(BaseHandler):
+    '''
+        支队连接
+    '''
+
+    def get(self, *args, **kwargs):
+        key = self.get_argument('key', default=None, strip=True)
+        value = self.get_argument('value', default=None, strip=True)
+        linkList = []
+        data_dict = []
+        with DBContext('r') as session:
+            query_info = session.query(CustomZdLink).all()
+
+        for msg in query_info:
+            _d = {}
+            _d['id'] = msg.id
+            _d['name'] = msg.name
+            linkList.append(_d)
+
+            _d = {}
+            _d['id'] = msg.id
+            _d['name'] = msg.name
+            _d['link'] = msg.link
+            data_dict.append(_d)
+
+        return self.write(dict(code=0, msg='获取成功', linkList=linkList, data=data_dict))
+
+    def post(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        name = data.get('name')
+        link = data.get('link')
+
+        with DBContext('r') as session:
+            exist_id = session.query(CustomZdLink.id).filter(CustomZdLink.name == name).first()
+
+        if exist_id:
+            return self.write(dict(code=-1, msg='名称重复'))
+
+        with DBContext('w', None, True) as session:
+            _new = CustomZdLink(
+                name=name, link=link,
+            )
+            session.add(_new)
+
+        return self.write(dict(code=0, msg='添加成功'))
+
+    def put(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        tid = data.get('id')
+        name = data.get('name')
+        link = data.get('link')
+
+        with DBContext('w', None, True) as session:
+            session.query(CustomZdLink).filter(CustomZdLink.id == int(tid)).update(
+                {
+                    CustomZdLink.name: name,
+                    CustomZdLink.link: link,
+                }, )
+
+        return self.write(dict(code=0, msg='编辑成功'))
+
+    def delete(self, *args, **kwargs):
+        data = json.loads(self.request.body.decode("utf-8"))
+        id = data.get('id')
+
+        with DBContext('w', None, True) as session:
+            if id:
+                session.query(CustomZdLink).filter(CustomZdLink.id == id).delete(synchronize_session=False)
+                session.commit()
+            else:
+                return self.write(dict(code=1, msg='id不能为空'))
+
+        self.write(dict(code=0, msg='删除成功'))
+
+
+class PushConfHandler(BaseHandler):
+    '''
+        下发配置到支队
+    '''
+
+    def post(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        failed_list = []
+        for payload in data:
+            try:
+                url = 'http://' + payload['zdlink'] + '/queryPushConf/'
+                res = requests.post(url, data=json.dumps(payload), timeout=2)
+                # 更新 qid
+                if res.text:
+                    res_data = json.loads(res.text)
+                    if res_data['data']:
+                        for id, qid in res_data['data'].items():
+                            with DBContext('w', None, True) as session:
+                                session.query(CustomQuerySub).filter(CustomQuerySub.id == int(id)).update(
+                                    {CustomQuerySub.qid: qid},
+                                )
+                    else:
+                        title = payload['title']
+                        failed_list.append(title)
+
+            except Exception as e:
+                ins_log.read_log('error', e)
+        if len(failed_list) > 0:
+            return self.write(dict(code=-1, msg=u'失败列表：%s' % failed_list))
+
+        return self.write(dict(code=0, msg='success'))
+
+
+class PullConfHandler(BaseHandler):
+    '''
+        从支队拉取配置
+    '''
+
+    def post(self):
+        req_data = json.loads(self.request.body.decode("utf-8"))
+        try:
+            linkId = req_data.get('linkId')
+            zdlink = getzdlink(linkId)
+            url = 'http://' + zdlink + '/queryPullConf/'
+            try:
+                res = requests.get(url, params='', timeout=3)
+            except requests.exceptions.ConnectTimeout:
+                return self.write(dict(code=-1, msg='网络超时'))
+            if res.text:
+                res_data = json.loads(res.text)
+                res_data = res_data['data']
+                for data in res_data:
+                    qid = data.get('qid', '')
+                    title = data.get('title')
+                    dblinkId = data.get('dblinkId')
+                    database = data.get('database')
+                    user = data.get('user')
+                    password = data.get('password')
+                    sql = data.get('sql')
+                    colnames = data.get('colnames')
+                    timesTy = data.get('timesTy')
+                    timesTyVal = data.get('timesTyVal')
+                    colalarms = data.get('colalarms')
+                    status = data.get('status')
+                    create_time = data.get('create_time')
+                    update_time = data.get('update_time')
+                    description = data.get('description')
+                    seq = data.get('seq')
+                    groupID = data.get('groupID')
+                    zdlinkID = linkId
+                    groupName = data.get('groupName', '')
+                    group2ndSeq = data.get('group2ndSeq', 0)
+
+                    with DBContext('r') as session:
+                        exist_id = session.query(CustomQuerySub.id).filter(CustomQuerySub.title == title).first()
+
+                    if exist_id:
+                        exist_id = exist_id[0]
+                        with DBContext('w', None, True) as session:
+                            session.query(CustomQuerySub).filter(CustomQuerySub.id == int(exist_id)).update(
+                                {
+                                    CustomQuerySub.qid: qid,
+                                    CustomQuerySub.title: title,
+                                    CustomQuerySub.dblinkId: int(dblinkId),
+                                    CustomQuerySub.database: database,
+                                    CustomQuerySub.user: user,
+                                    CustomQuerySub.password: password,
+                                    CustomQuerySub.sql: sql,
+                                    CustomQuerySub.colnames: colnames,
+                                    CustomQuerySub.timesTy: timesTy,
+                                    CustomQuerySub.timesTyVal: timesTyVal,
+                                    CustomQuerySub.colalarms: colalarms,
+                                    CustomQuerySub.status: status,
+                                    CustomQuerySub.create_time: create_time,
+                                    CustomQuerySub.update_time: update_time,
+                                    CustomQuerySub.description: description,
+                                    CustomQuerySub.seq: seq,
+                                    CustomQuerySub.groupID: groupID,
+                                    CustomQuerySub.groupName: groupName,
+                                    CustomQuerySub.group2ndSeq: group2ndSeq,
+                                    CustomQuerySub.zdlinkID: zdlinkID,
+                                }, )
+                    else:
+                        with DBContext('w', None, True) as session:
+                            new_query = CustomQuerySub(
+                                qid=qid, title=title, dblinkId=dblinkId, database=database, user=user,
+                                password=password, sql=sql, colnames=colnames, timesTy=timesTy, timesTyVal=timesTyVal,
+                                colalarms=colalarms, status=status, create_time=create_time, update_time=update_time,
+                                description=description, seq=seq, groupID=groupID, groupName=groupName,
+                                group2ndSeq=group2ndSeq, zdlinkID=zdlinkID,
+                            )
+                            session.add(new_query)
+
+        except Exception as e:
+            traceback.print_exc(e)
+            return self.write(dict(code=-1, msg='拉取失败'))
+
+        return self.write(dict(code=0, msg='拉取完毕'))
+
+
+class ZdInfoHandler(BaseHandler):
+    '''
+        获取支队分组信息，数据库源信息
+    '''
+
+    def get(self):
+        id = self.get_argument('id', default=None, strip=True)
+        zdlink = getzdlink(id)
+        groupObj = db_list = []
+        try:
+            url = 'http://' + zdlink + '/getInfo/'
+            res = requests.get(url, params='', timeout=1)
+            if res.text:
+                res_data = json.loads(res.text)
+                groupObj = res_data['groupObj']
+                db_list = res_data['db_list']
+
+        except Exception as e:
+            ins_log.read_log('error', e)
+        return self.write(dict(code=0, zdlink=zdlink, groupObj=groupObj, db_list=db_list))
+
+
 customquery_urls = [
     (r"/v1/queryConf/", QueryConfFileHandler),
     (r"/v1/queryConfForshow/", QueryConfForshowFileHandler),
@@ -615,6 +1039,11 @@ customquery_urls = [
     (r"/v1/gettmp/", TmpFileHandler),
     (r"/v1/operationgroup/", GroupHandler),
     (r"/v1/getgroup/", GroupHandler),
+    (r"/v1/querySubConf/", QuerySubConfHandler),
+    (r"/v1/queryZd/", ZdLinkHandler),
+    (r"/v1/queryPushConf/", PushConfHandler),
+    (r"/v1/queryPullConf/", PullConfHandler),
+    (r"/v1/getZdInfo/", ZdInfoHandler),
 ]
 
 if __name__ == "__main__":

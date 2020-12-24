@@ -31,7 +31,10 @@ def get_top_info(hosts, asb):
     res = {}
     asb.run(hosts=hosts, module="shell", args="top -bn 1 -i -c")
     stdout_dict = json.loads(asb.get_result())
-    stdout = stdout_dict['success'][hosts]['stdout']
+    try:
+        stdout = stdout_dict['success'][hosts]['stdout']
+    except:
+        return res
     # %Cpu(s) cpu使用率
     _s = stdout.split('\n')[2]
     # obj = re.findall(r'.*?:(.*?)us.*?(.*?)sy.*?(.*?)ni.*?(.*?)id.*?(.*?)wa.*?(.*?)hi.*?(.*?)si.*?(.*?)st.*?', s, re.S)
@@ -60,7 +63,10 @@ def get_tcp(hosts, asb):
     res = {}
     asb.run(hosts=hosts, module="shell", args="netstat -n| awk '/^tcp/ {++S[$NF]} END {for(a in S) print a, S[a]}'")
     stdout_dict = json.loads(asb.get_result())
-    stdout_lines = stdout_dict['success'][hosts]['stdout_lines']
+    try:
+        stdout_lines = stdout_dict['success'][hosts]['stdout_lines']
+    except:
+        return res
     # ['ESTABLISHED 17', 'TIME_WAIT 2']
     for i in stdout_lines:
         _l = i.split(' ')
@@ -76,7 +82,10 @@ def get_iostat(hosts, asb):
     res = {}
     asb.run(hosts=hosts, module="shell", args="iostat -c")
     stdout_dict = json.loads(asb.get_result())
-    stdout_lines = stdout_dict['success'][hosts]['stdout_lines']
+    try:
+        stdout_lines = stdout_dict['success'][hosts]['stdout_lines']
+    except:
+        return res
     _s = stdout_lines[3]
     _s = _s.split(' ')
     _s = [i for i in _s if i]
