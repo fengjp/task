@@ -646,11 +646,19 @@ class QuerySubConfHandler(BaseHandler):
             groupID = json.loads(data_dict['groupID']) if data_dict['groupID'] else ''
             data_dict['group1stID'] = groupID[0] if groupID else -1
             data_dict['group2ndID'] = groupID[1] if groupID else -1
-            data_dict['group1stSeq'] = 0
+            data_dict['group1stSeq'] = self.getGroupSeq(data_dict['group1stID'])
             data_dict['zdlink'] = getzdlink(data_dict['zdlinkID'])
             dict_list.append(data_dict)
 
         return self.write(dict(code=0, msg='获取成功', data=dict_list, count=count))
+
+    def getGroupSeq(self, gid):
+        seq = -1
+        with DBContext('r') as session:
+            groupSeq = session.query(CustomGroup.groupSeq).filter(CustomGroup.id == int(gid)).all()
+            if len(groupSeq) > 0:
+                seq = groupSeq[0][0]
+        return seq
 
     def post(self):
         data = json.loads(self.request.body.decode("utf-8"))
@@ -710,7 +718,17 @@ class QuerySubConfHandler(BaseHandler):
                                        )
             session.add(new_query)
 
+        # 更新分组排序号
+        self.updateGroupSeq(group1stID, group1stSeq)
+
         return self.write(dict(code=0, msg='添加成功'))
+
+    def updateGroupSeq(self, gid, seq):
+        with DBContext('w', None, True) as session:
+            session.query(CustomGroup).filter(CustomGroup.id == int(gid)).update(
+                {
+                    CustomGroup.groupSeq: seq,
+                }, )
 
     def put(self):
         data = json.loads(self.request.body.decode("utf-8"))
@@ -764,8 +782,11 @@ class QuerySubConfHandler(BaseHandler):
                  CustomQuerySub.timesTyVal: timesTyVal, CustomQuerySub.colalarms: json.dumps(colalarms),
                  CustomQuerySub.user: user, CustomQuerySub.password: password, CustomQuerySub.description: description,
                  CustomQuerySub.seq: seq, CustomQuerySub.groupID: groupID, CustomQuerySub.zdlinkID: zdlinkID,
-                 CustomQuerySub.groupName: groupName,
+                 CustomQuerySub.groupName: groupName, CustomQuerySub.group2ndSeq: group2ndSeq,
                  }, )
+
+        # 更新分组排序号
+        self.updateGroupSeq(group1stID, group1stSeq)
 
         return self.write(dict(code=0, msg='编辑成功'))
 
@@ -900,7 +921,10 @@ class PushConfHandler(BaseHandler):
         for payload in data:
             try:
                 url = 'http://' + payload['zdlink'] + '/queryPushConf/'
-                res = requests.post(url, data=json.dumps(payload), timeout=2)
+                try:
+                    res = requests.post(url, data=json.dumps(payload), timeout=3)
+                except:
+                    return self.write(dict(code=-1, msg='网络超时'))
                 # 更新 qid
                 if res.text:
                     res_data = json.loads(res.text)
@@ -1020,7 +1044,7 @@ class ZdInfoHandler(BaseHandler):
         groupObj = db_list = []
         try:
             url = 'http://' + zdlink + '/getInfo/'
-            res = requests.get(url, params='', timeout=1)
+            res = requests.get(url, params='', timeout=3)
             if res.text:
                 res_data = json.loads(res.text)
                 groupObj = res_data['groupObj']
@@ -1029,6 +1053,48 @@ class ZdInfoHandler(BaseHandler):
         except Exception as e:
             ins_log.read_log('error', e)
         return self.write(dict(code=0, zdlink=zdlink, groupObj=groupObj, db_list=db_list))
+
+
+class ZdGroupHandler(BaseHandler):
+    def post(self):
+        data = json.loads(self.request.body.decode("utf-8"))
+        zdlink = getzdlink(data['linkId'])
+        try:
+            url = 'http://' + zdlink + '/changeZdGroup/'
+            try:
+                res = requests.post(url, data=json.dumps(data), timeout=3)
+                if res.text:
+                    res_data = json.loads(res.text)
+                    if res_data['code'] == 0:
+                        return self.write(dict(code=0, msg='成功'))
+                    else:
+                        return self.write(dict(code=0, msg='失败'))
+            except:
+                return self.write(dict(code=-1, msg='网络超时'))
+
+        except Exception as e:
+            ins_log.read_log('error', e)
+            return self.write(dict(code=0, msg='失败'))
+
+    def delete(self, *args, **kwargs):
+        data = json.loads(self.request.body.decode("utf-8"))
+        zdlink = getzdlink(data['linkId'])
+        try:
+            url = 'http://' + zdlink + '/changeZdGroup/'
+            try:
+                res = requests.delete(url, data=json.dumps(data), timeout=3)
+                if res.text:
+                    res_data = json.loads(res.text)
+                    if res_data['code'] == 0:
+                        return self.write(dict(code=0, msg='成功'))
+                    else:
+                        return self.write(dict(code=0, msg='失败'))
+            except:
+                return self.write(dict(code=-1, msg='网络超时'))
+
+        except Exception as e:
+            ins_log.read_log('error', e)
+            return self.write(dict(code=0, msg='失败'))
 
 
 customquery_urls = [
@@ -1044,6 +1110,7 @@ customquery_urls = [
     (r"/v1/queryPushConf/", PushConfHandler),
     (r"/v1/queryPullConf/", PullConfHandler),
     (r"/v1/getZdInfo/", ZdInfoHandler),
+    (r"/v1/changeZdGroup/", ZdGroupHandler),
 ]
 
 if __name__ == "__main__":
