@@ -50,118 +50,150 @@ class QueryConfDoSqlFileHandler(BaseHandler):
         value = self.get_argument('value', default=None, strip=True)
         dict_list = []
         errormsg = ''
-        try:
-            with DBContext('r') as session:
-                query_info = session.query(CustomQuery).filter(CustomQuery.id == value).first()
-
-            dblinkId = query_info.dblinkId
-            CUSTOM_DB_INFO['db'] = 'codo_cmdb'
-            mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
-            # 获取数据库源 连接地址
-            select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(
-                dblinkId)
-            db_info = mysql_conn.query(select_db)
-        except:
-            errormsg = '获取数据库源连接信息失败'
-            return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
-
-        if len(db_info) > 0:
-            db = db_info[0]
-            db_obj = {}
-            db_obj['host'] = db[1]
-            db_obj['port'] = int(db[2])
-            db_obj['user'] = db[3]
-            db_obj['passwd'] = decrypt(db[4])
-            if query_info.database:
-                db_obj['db'] = query_info.database
-            else:
-                db_obj['db'] = db[5]
-            sql = query_info.sql
-
-            if query_info.user:
-                db_obj['user'] = query_info.user
-
-            if query_info.password:
-                db_obj['passwd'] = decrypt(query_info.password)
-
-            sql = re.sub('update|drop', '', sql, 0, re.I)
-            # ins_log.read_log('info', db_obj)
-            res = []
+        # 总队执行的
+        if key == 'id':
             try:
-                if db[0] == 'mysql':
-                    mysql_conn = MysqlBase(**db_obj)
-                    res = mysql_conn.query(sql)
+                with DBContext('r') as session:
+                    query_info = session.query(CustomQuery).filter(CustomQuery.id == value).first()
 
-                if db[0] == 'oracle':
-                    oracle_conn = OracleBase(**db_obj)
-                    res = oracle_conn.query(sql)
-            except Exception as e:
-                errormsg = '%s 数据库: 查询失败, %s' % (db_obj['host'], e)
+                dblinkId = query_info.dblinkId
+                CUSTOM_DB_INFO['db'] = 'codo_cmdb'
+                mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
+                # 获取数据库源 连接地址
+                select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(
+                    dblinkId)
+                db_info = mysql_conn.query(select_db)
+            except:
+                errormsg = '获取数据库源连接信息失败'
                 return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
 
-            if res:
+            if len(db_info) > 0:
+                db = db_info[0]
+                db_obj = {}
+                db_obj['host'] = db[1]
+                db_obj['port'] = int(db[2])
+                db_obj['user'] = db[3]
+                db_obj['passwd'] = decrypt(db[4])
+                if query_info.database:
+                    db_obj['db'] = query_info.database
+                else:
+                    db_obj['db'] = db[5]
+                sql = query_info.sql
+
+                if query_info.user:
+                    db_obj['user'] = query_info.user
+
+                if query_info.password:
+                    db_obj['passwd'] = decrypt(query_info.password)
+
+                sql = re.sub('update|drop', '', sql, 0, re.I)
+                # ins_log.read_log('info', db_obj)
+                res = []
                 try:
-                    colnames = json.loads(query_info.colnames)
-                    colalarms = json.loads(query_info.colalarms)
-                    # 增加状态列
-                    if len(colalarms) > 0:
-                        colnames.append({'col': "target", 'name': "指标"})
-                    dict_key = []
-                    for i in colnames:
-                        dict_key.append(i['col'])
+                    if db[0] == 'mysql':
+                        mysql_conn = MysqlBase(**db_obj)
+                        res = mysql_conn.query(sql)
 
-                    for i in res:
-                        _d = dict(zip(dict_key, i))
-                        for selColObj in colalarms:
-                            # 判断指标值 (同少取最少，同大取最大)
-                            selCol = selColObj['selCol']
-                            if selCol in _d:
-                                dbval = _d[selCol]
-                                if not dbval:
-                                    dbval = 0
-                                subColList = selColObj['subColList']
-                                subColList = sorted(subColList, key=lambda x: TypeObj[x['alarmType']], reverse=True)
-                                # ins_log.read_log('info', subColList)
-                                for alarmObj in subColList:
-                                    sign = alarmObj['sign']
-                                    alarmVal = alarmObj['alarmVal']
-                                    if sign == '>' and float(dbval) > float(alarmVal):
-                                        _d['target'] = alarmObj['alarmType']
-                                    if sign == '<' and float(dbval) < float(alarmVal):
-                                        _d['target'] = alarmObj['alarmType']
-                                    if sign == '>=' and float(dbval) >= float(alarmVal):
-                                        _d['target'] = alarmObj['alarmType']
-                                        break
-                                    if sign == '<=' and float(dbval) <= float(alarmVal):
-                                        _d['target'] = alarmObj['alarmType']
-                                    if sign == '=' and float(dbval) == float(alarmVal):
-                                        _d['target'] = alarmObj['alarmType']
-
-                                    if 'target' not in _d:
-                                        _d['target'] = '未知'
-                        # ins_log.read_log('info', _d)
-                        dict_list.append(_d)
-
-                    if len(colalarms) > 0:
-                        dict_list.sort(key=lambda x: TypeObj[x['target']], reverse=True)
-                        countObj = dict(Counter([i['target'] for i in dict_list]))
-                    else:
-                        countObj = {}
-
+                    if db[0] == 'oracle':
+                        oracle_conn = OracleBase(**db_obj)
+                        res = oracle_conn.query(sql)
                 except Exception as e:
-                    traceback.print_exc()
-                    dict_list = []
-                    countObj = {}
-                    errormsg = '字段格式错误'
-                    return self.write(dict(code=-2, msg='获取失败', errormsg=errormsg, data=[]))
+                    errormsg = '%s 数据库: 查询失败, %s' % (db_obj['host'], e)
+                    return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
 
-                # 转换 时间类型字段
-                for _d in dict_list:
-                    for k, v in _d.items():
-                        if isinstance(v, datetime.datetime):
-                            _d[k] = v.strftime("%Y-%m-%d %H:%M:%S")
+                if res:
+                    try:
+                        colnames = json.loads(query_info.colnames)
+                        colalarms = json.loads(query_info.colalarms)
+                        # 增加状态列
+                        if len(colalarms) > 0:
+                            colnames.append({'col': "target", 'name': "指标"})
+                        dict_key = []
+                        for i in colnames:
+                            dict_key.append(i['col'])
 
-                return self.write(dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list, count=countObj))
+                        for i in res:
+                            _d = dict(zip(dict_key, i))
+                            for selColObj in colalarms:
+                                # 判断指标值 (同少取最少，同大取最大)
+                                selCol = selColObj['selCol']
+                                if selCol in _d:
+                                    dbval = _d[selCol]
+                                    if not dbval:
+                                        dbval = 0
+                                    subColList = selColObj['subColList']
+                                    subColList = sorted(subColList, key=lambda x: TypeObj[x['alarmType']], reverse=True)
+                                    # ins_log.read_log('info', subColList)
+                                    for alarmObj in subColList:
+                                        sign = alarmObj['sign']
+                                        alarmVal = alarmObj['alarmVal']
+                                        if sign == '>' and float(dbval) > float(alarmVal):
+                                            _d['target'] = alarmObj['alarmType']
+                                        if sign == '<' and float(dbval) < float(alarmVal):
+                                            _d['target'] = alarmObj['alarmType']
+                                        if sign == '>=' and float(dbval) >= float(alarmVal):
+                                            _d['target'] = alarmObj['alarmType']
+                                            break
+                                        if sign == '<=' and float(dbval) <= float(alarmVal):
+                                            _d['target'] = alarmObj['alarmType']
+                                        if sign == '=' and float(dbval) == float(alarmVal):
+                                            _d['target'] = alarmObj['alarmType']
+
+                                        if 'target' not in _d:
+                                            _d['target'] = '未知'
+                            # ins_log.read_log('info', _d)
+                            dict_list.append(_d)
+
+                        if len(colalarms) > 0:
+                            dict_list.sort(key=lambda x: TypeObj[x['target']], reverse=True)
+                            countObj = dict(Counter([i['target'] for i in dict_list]))
+                        else:
+                            countObj = {}
+
+                    except Exception as e:
+                        traceback.print_exc()
+                        dict_list = []
+                        countObj = {}
+                        errormsg = '字段格式错误'
+                        return self.write(dict(code=-2, msg='获取失败', errormsg=errormsg, data=[]))
+
+                    # 转换 时间类型字段
+                    for _d in dict_list:
+                        for k, v in _d.items():
+                            if isinstance(v, datetime.datetime):
+                                _d[k] = v.strftime("%Y-%m-%d %H:%M:%S")
+
+                    return self.write(dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list, count=countObj))
+
+        # 支队执行
+        if key == 'ip':
+            ins_log.read_log('info', value)
+            zdlink = value.split('|')[0]
+            qid = value.split('|')[-1]
+            try:
+                url = 'http://' + zdlink + '/doSql/?qid=' + qid
+                try:
+                    res = requests.get(url, timeout=3)
+                    if res.text:
+                        res_data = json.loads(res.text)
+                        if res_data['code'] == 0:
+                            dict_list = res_data.get('data', [])
+                            countObj = res_data.get('count', {})
+                            errormsg = res_data.get('errormsg', '')
+                            return self.write(
+                                dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list, count=countObj))
+                        else:
+                            errormsg = res_data['errormsg']
+                            return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
+                except Exception as e:
+                    traceback.print_exc(e)
+                    errormsg = '网络超时'
+                    return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
+
+            except Exception as e:
+                ins_log.read_log('error', e)
+                errormsg = e
+                return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
 
         return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
 
@@ -177,15 +209,16 @@ class QueryConfForshowFileHandler(BaseHandler):
         except:
             tids = []
         # ins_log.read_log('info', tids)
+        # 总队配置
         with DBContext('r') as session:
             if key and value and key != 'tid':
-                count = session.query(CustomQuery).filter_by(**{key: value}).count()
+                # count = session.query(CustomQuery).filter_by(**{key: value}).count()
                 query_info = session.query(CustomQuery).filter_by(**{key: value}).all()
             elif key == 'tid':
-                count = session.query(CustomQuery).filter(CustomQuery.id.in_(tids)).count()
+                # count = session.query(CustomQuery).filter(CustomQuery.id.in_(tids)).count()
                 query_info = session.query(CustomQuery).filter(CustomQuery.id.in_(tids)).all()
             else:
-                count = session.query(CustomQuery).count()
+                # count = session.query(CustomQuery).count()
                 query_info = session.query(CustomQuery).all()
 
         for msg in query_info:
@@ -207,8 +240,34 @@ class QueryConfForshowFileHandler(BaseHandler):
             data_dict['group2ndNa'] = self.getGroupInfo(data_dict['groupID'][1])[0]
             data_dict['group2ndSeq'] = self.getGroupInfo(data_dict['groupID'][1])[1]
             dict_list.append(data_dict)
-            dict_list.sort(key=lambda x: x['seq'])
 
+        # 支队配置
+        with DBContext('r') as session:
+            query_info = session.query(CustomQuerySub).all()
+
+        for msg in query_info:
+            if msg.status == '0':
+                continue
+            data_dict = {}
+            data_dict['colnames'] = json.loads(msg.colnames)
+            colalarms = json.loads(msg.colalarms)
+            if len(colalarms) > 0:
+                data_dict['colnames'].append({'col': "target", 'name': "指标"})
+            data_dict['id'] = msg.id
+            data_dict['title'] = msg.title
+            data_dict['timesTy'] = msg.timesTy
+            data_dict['timesTyVal'] = msg.timesTyVal
+            data_dict['seq'] = msg.seq
+            data_dict['groupID'] = json.loads(msg.groupID) if msg.groupID else []
+            data_dict['group1stNa'] = self.getGroupInfo(data_dict['groupID'][0])[0]
+            data_dict['group1stSeq'] = self.getGroupInfo(data_dict['groupID'][0])[1]
+            data_dict['group2ndNa'] = msg.groupName
+            data_dict['group2ndSeq'] = msg.group2ndSeq
+            data_dict['zdlink'] = getzdlink(msg.zdlinkID)
+            data_dict['qid'] = msg.qid
+            dict_list.append(data_dict)
+
+        dict_list.sort(key=lambda x: x['seq'])
         return self.write(dict(code=0, msg='获取成功', data=dict_list))
 
     def getGroupInfo(self, gid):
