@@ -167,7 +167,6 @@ class QueryConfDoSqlFileHandler(BaseHandler):
 
         # 支队执行
         if key == 'ip':
-            ins_log.read_log('info', value)
             zdlink = value.split('|')[0]
             qid = value.split('|')[-1]
             try:
