@@ -10,6 +10,7 @@ from tk.handlers.report_handler import report_urls
 from tk.handlers.monitor_handler import monitor_urls
 from tk.handlers.customized_handler import customized_urls
 from tk.handlers.certdata_handler import certdata_urls
+from tk.handlers.meter_handler import meter_urls
 
 
 class Application(myApplication):
@@ -20,6 +21,7 @@ class Application(myApplication):
         urls.extend(monitor_urls)
         urls.extend(customized_urls)
         urls.extend(certdata_urls)
+        urls.extend(meter_urls)
         super(Application, self).__init__(urls, **settings)
 
 

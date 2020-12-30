@@ -70,3 +70,14 @@ class Customized(Base):
     download_dir = Column('download_dir', String(50))  # 文件目录
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
     start_end = Column('start_end', String(50))
+
+class Meter(Base):
+    __tablename__ = 'meter'
+
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    totitle = Column('totitle', String(200))  # 标题
+    today = Column('today', String(200))  # 日期
+    times = Column('times', String(20))  # 执行时间
+    longtime = Column('longtime', String(100)) #时长
+    remarks  = Column('remarks', String(1500)) #记录
+    create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
