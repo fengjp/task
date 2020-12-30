@@ -176,7 +176,7 @@ class AnsiableAPI():
             result_raw['unreachable'][host] = result._result
 
         # 最终打印结果，并且使用 JSON 继续格式化
-        print(json.dumps(result_raw, indent=4))
+        # print(json.dumps(result_raw, indent=4))
 
         return json.dumps(result_raw)
 

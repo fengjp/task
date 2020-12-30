@@ -185,7 +185,7 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                             errormsg = res_data['errormsg']
                             return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
                 except Exception as e:
-                    traceback.print_exc(e)
+                    # traceback.print_exc(e)
                     errormsg = '网络超时'
                     return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
 
