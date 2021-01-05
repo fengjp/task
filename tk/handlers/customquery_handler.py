@@ -182,6 +182,8 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                         _d[k] = v.strftime("%Y-%m-%d %H:%M:%S")
 
             return dict(code=0, msg='获取成功', errormsg=errormsg, data=dict_list, count=countObj)
+        else:
+            return dict(code=-1, msg='获取失败', errormsg='没有数据库源', data=[], count={})
 
     @run_on_executor
     def getSubData(self, value):
@@ -201,6 +203,9 @@ class QueryConfDoSqlFileHandler(BaseHandler):
                     else:
                         errormsg = res_data['errormsg']
                         return dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={})
+                else:
+                    errormsg = '%s' % res
+                    return dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={})
             except Exception as e:
                 # traceback.print_exc(e)
                 errormsg = '网络超时'
