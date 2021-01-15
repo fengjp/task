@@ -68,9 +68,9 @@ def toexcel(all_customized_list, asset_date, AssetSql_date):
                             temp_copy = copy.deepcopy(q_header)
                             temp_copy2 = temp_copy.split('|')
 
-                            ins_log.read_log('info', "11111111111111111111111111111111111111")
-                            ins_log.read_log('info', temp_copy2)
-                            ins_log.read_log('info', "11111111111111111111111111111111111111")
+                            # ins_log.read_log('info', "11111111111111111111111111111111111111")
+                            # ins_log.read_log('info', temp_copy2)
+                            # ins_log.read_log('info', "11111111111111111111111111111111111111")
                             # 保存文件
                             Base_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                             upload_path = '{}/static/report/'.format(Base_DIR)

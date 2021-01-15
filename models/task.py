@@ -57,6 +57,26 @@ class CustomTmp(Base):
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
 
 
+class Score(Base):
+    __tablename__ = 'scorelist'
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    today = Column('today', String(200), default='')  # 组名
+    fuwu_defen = Column('fuwu_defen', String(5), default='')  # 组名
+    fuwu_remarks = Column('fuwu_defen', String(5000), default='')
+    xitong_defen = Column('xitong_defen', String(5), default='')
+    xitong_remarks = Column('xitong_remarks', String(5000), default='')
+    duanxin_defen = Column('duanxin_defen', String(5), default='')
+    duanxin_remarks = Column('duanxin_remarks', String(5000), default='')
+    nwwang_defen = Column('nwwang_defen', String(5), default='')
+    nwwang_remarks = Column('nwwang_remarks', String(5000), default='')
+    yidi_defen = Column('yidi_defen', String(5), default='')
+    yidi_remarks = Column('yidi_remarks', String(5000), default='')
+    renlian_defen = Column('renlian_defen', String(5), default='')
+    renlian_remarks = Column('renlian_remarks', String(5000), default='')
+    yunxing_defen = Column('yunxing_defen', String(5), default='')
+    yunxing_remarks = Column('yunxing_remarks', String(5000), default='')
+    create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
+
 class Customized(Base):
     __tablename__ = 'customizedList'
 
@@ -70,14 +90,3 @@ class Customized(Base):
     download_dir = Column('download_dir', String(50))  # 文件目录
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
     start_end = Column('start_end', String(50))
-
-class Meter(Base):
-    __tablename__ = 'meter'
-
-    id = Column('id', Integer, primary_key=True, autoincrement=True)
-    totitle = Column('totitle', String(200))  # 标题
-    today = Column('today', String(200))  # 日期
-    times = Column('times', String(20))  # 执行时间
-    longtime = Column('longtime', String(100)) #时长
-    remarks  = Column('remarks', String(1500)) #记录
-    create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
