@@ -12,13 +12,15 @@ from websdk.db_context import DBContext
 from settings import CUSTOM_DB_INFO
 from libs.mysql_conn import MysqlBase
 from libs.oracle_conn import OracleBase
-from models.task import model_to_dict, CustomQuery
+from models.task import model_to_dict, CustomQuery, CustomQueryLog
 from collections import Counter
 import traceback
 import re
 import json
 from libs.aes_coder import encrypt, decrypt
 import requests
+from tornado.httpclient import AsyncHTTPClient
+from tornado.ioloop import IOLoop
 
 TypeObj = {
     '未知': -1,
@@ -60,6 +62,8 @@ def run():
         new_data = {}
         for k, v in data.items():
             new_data[str(k, 'utf8')] = str(v, 'utf8')
+        if not new_data:
+            redis_conn.srem('query_list', key)
         if new_data['status'] == '1':
             now = int(time.time())
             if now >= int(new_data['next_time']):
@@ -70,48 +74,86 @@ def do_sql(redis_conn, key, new_data):
     db_info = []
     query_info = {}
     res = {}
+    ty = 0
     if 'zongdui' in str(key, 'utf8'):
+        ty = 0
         try:
             with DBContext('r') as session:
                 query_info = session.query(CustomQuery).filter(CustomQuery.id == new_data['id']).first()
 
-            dblinkId = query_info.dblinkId
-            CUSTOM_DB_INFO['db'] = 'codo_cmdb'
-            mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
-            # 获取数据库源 连接地址
-            select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(
-                dblinkId)
-            db_info = mysql_conn.query(select_db)
+            if query_info.type == 'sql':
+                dblinkId = query_info.dblinkId
+                CUSTOM_DB_INFO['db'] = 'codo_cmdb'
+                mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
+                # 获取数据库源 连接地址
+                select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(
+                    dblinkId)
+                db_info = mysql_conn.query(select_db)
+
+            elif query_info.type == 'urls':
+                data_list = []
+                for url in json.loads(query_info.urls):
+                    url = 'http://' + url
+                    status_code, resp_time = getHttpCode(url)
+                    _d = {}
+                    _d['url'] = url
+                    _d['httpcode'] = status_code
+                    _d['resp_time'] = resp_time
+                    colalarms = json.loads(query_info.colalarms)
+                    # 判断指标值 （排序后，同大取最大，同少取最少）
+                    subColList = colalarms[0]['subColList']
+                    subColList = sorted(subColList, key=lambda x: TypeObj[x['alarmType']], reverse=True)
+                    for alarmObj in subColList:
+                        sign = alarmObj['sign']
+                        alarmVal = alarmObj['alarmVal']
+                        if sign == '>' and float(resp_time) > float(alarmVal):
+                            _d['target'] = alarmObj['alarmType']
+                            break
+                        if sign == '>=' and float(resp_time) >= float(alarmVal):
+                            _d['target'] = alarmObj['alarmType']
+                            break
+                        if sign == '<' and float(resp_time) < float(alarmVal):
+                            _d['target'] = alarmObj['alarmType']
+                        if sign == '<=' and float(resp_time) <= float(alarmVal):
+                            _d['target'] = alarmObj['alarmType']
+                        if sign == '=' and float(resp_time) == float(alarmVal):
+                            _d['target'] = alarmObj['alarmType']
+                    data_list.append(_d)
+                data_list.sort(key=lambda x: TypeObj[x['target']], reverse=True)
+                countObj = dict(Counter([i['target'] for i in data_list]))
+                res = dict(code=0, msg='获取成功', errormsg='', data=data_list, count=countObj)
+                # 将结果存入redis，设置过期时间.
+                saveRedis(redis_conn, key, new_data, res)
         except:
             traceback.print_exc()
-            print('获取数据库源连接信息失败')
 
         if len(db_info) > 0:
             res = getData(query_info, db_info)
             # 将结果存入redis，设置过期时间.
-            res_key = str(key, 'utf8') + '_res'
-            redis_conn.hmset(res_key, {'res': json.dumps(res)})
-            nt = next_time(new_data)
-            expire = nt - int(time.time())
-            redis_conn.expire(res_key, time=expire)
-            redis_conn.hmset(key, {'next_time': nt})
+            saveRedis(redis_conn, key, new_data, res)
 
     if 'zhidui' in str(key, 'utf8'):
+        ty = 1
         zdlink = new_data['zdlink']
         qid = new_data.get('qid', 0)
         if int(qid) > 0:
             res = getSubData(zdlink, qid)
             # 将结果存入redis，设置过期时间.
-            res_key = str(key, 'utf8') + '_res'
-            redis_conn.hmset(res_key, {'res': json.dumps(res)})
-            nt = next_time(new_data)
-            expire = nt - int(time.time())
-            redis_conn.expire(res_key, time=expire)
-            redis_conn.hmset(key, {'next_time': nt})
+            saveRedis(redis_conn, key, new_data, res)
 
     # 记录历史 只记录最高指标的一条数据
-    if res:
-        saveLog(new_data, res)
+    if res and ty >= 0:
+        saveLog(new_data, res, ty)
+
+
+def saveRedis(redis_conn, key, new_data, res):
+    # 将结果存入redis，设置过期时间.
+    res_key = str(key, 'utf8') + '_res'
+    redis_conn.hmset(res_key, {'res': json.dumps(res)})
+    nt = next_time(new_data)
+    expire = nt - int(time.time())
+    redis_conn.expire(res_key, time=expire)
+    redis_conn.hmset(key, {'next_time': nt})
 
 
 def getData(query_info, db_info):
@@ -178,6 +220,7 @@ def getData(query_info, db_info):
                             alarmVal = alarmObj['alarmVal']
                             if sign == '>' and float(dbval) > float(alarmVal):
                                 _d['target'] = alarmObj['alarmType']
+                                break
                             if sign == '<' and float(dbval) < float(alarmVal):
                                 _d['target'] = alarmObj['alarmType']
                             if sign == '>=' and float(dbval) >= float(alarmVal):
@@ -243,13 +286,32 @@ def getSubData(zdlink, qid):
         return dict(code=-4, msg='获取失败', errormsg=errormsg, data=[], count={})
 
 
-def saveLog(data, res):
+def saveLog(data, res, ty):
     colalarms = json.loads(data['colalarms'].replace("'", '"'))
     if len(colalarms) > 0:
         selCol = colalarms[0]['selCol']
-        print(data)
-        print(res['data'])
+        title = data['title']
+        qid = int(data['id'])
         res_data = res['data']
+        if selCol:
+            targeted_val = res_data[0][selCol]
+            with DBContext('w', None, True) as session:
+                new_query = CustomQueryLog(
+                    targeted_val=targeted_val, title=title, qid=qid, ty=ty
+                )
+                session.add(new_query)
+
+
+def getHttpCode(url):
+    try:
+        r = requests.get(url, timeout=5)
+        status_code = r.status_code
+        resp_time = r.elapsed.microseconds / 1000000
+    except:
+        status_code = 500
+        resp_time = 5
+
+    return status_code, resp_time
 
 
 if __name__ == '__main__':

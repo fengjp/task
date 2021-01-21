@@ -36,6 +36,8 @@ class CustomQuery(Base):
     description = Column('description', Text, default='')  # 描述
     seq = Column('seq', Integer)  # 序号
     groupID = Column('groupID', String(255), default='')  # 层级组ID
+    urls = Column('urls', String(512), default='')  # urls
+    type = Column('type', String(50), default='')  # 监控类型
 
 
 class CustomQuerySub(Base):
@@ -96,20 +98,21 @@ class Score(Base):
     id = Column('id', Integer, primary_key=True, autoincrement=True)
     today = Column('today', String(200), default='')  # 组名
     fuwu_defen = Column('fuwu_defen', String(5), default='')  # 组名
-    fuwu_remarks = Column('fuwu_defen', String(5000), default='')
+    fuwu_remarks = Column('fuwu_remarks', Text, default='')
     xitong_defen = Column('xitong_defen', String(5), default='')
-    xitong_remarks = Column('xitong_remarks', String(5000), default='')
+    xitong_remarks = Column('xitong_remarks', Text, default='')
     duanxin_defen = Column('duanxin_defen', String(5), default='')
-    duanxin_remarks = Column('duanxin_remarks', String(5000), default='')
+    duanxin_remarks = Column('duanxin_remarks', Text, default='')
     nwwang_defen = Column('nwwang_defen', String(5), default='')
-    nwwang_remarks = Column('nwwang_remarks', String(5000), default='')
+    nwwang_remarks = Column('nwwang_remarks', Text, default='')
     yidi_defen = Column('yidi_defen', String(5), default='')
-    yidi_remarks = Column('yidi_remarks', String(5000), default='')
+    yidi_remarks = Column('yidi_remarks', Text, default='')
     renlian_defen = Column('renlian_defen', String(5), default='')
-    renlian_remarks = Column('renlian_remarks', String(5000), default='')
+    renlian_remarks = Column('renlian_remarks', Text, default='')
     yunxing_defen = Column('yunxing_defen', String(5), default='')
-    yunxing_remarks = Column('yunxing_remarks', String(5000), default='')
+    yunxing_remarks = Column('yunxing_remarks', Text, default='')
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
+
 
 class Customized(Base):
     __tablename__ = 'customizedList'
@@ -123,9 +126,6 @@ class Customized(Base):
     todate = Column('todate', String(100))
     download_dir = Column('download_dir', String(50))  # 文件目录
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
-<<<<<<< Updated upstream
-    start_end = Column('start_end', String(50))
-=======
     start_end = Column('start_end', String(50))
 
 
@@ -134,7 +134,8 @@ class CustomQueryLog(Base):
 
     id = Column('id', Integer, primary_key=True, autoincrement=True)
     title = Column('title', String(50), default='')  # 标题
+    qid = Column('qid', Integer, index=True) # 查询项目id
+    ty = Column('ty', Integer, index=True)  # 总队 0 支队 1
     targeted_val = Column('targeted_val', String(50), default='')  # 指标值
     remark = Column('remark', String(50), default='')  # 备注
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
->>>>>>> Stashed changes
