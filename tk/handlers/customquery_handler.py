@@ -122,14 +122,16 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             if len(db_info) > 0:
                 query_key = bytes(query_info.title + '__zongdui_res', encoding='utf-8')
                 res = self.getRedisData(query_key)
-                # res = yield self.getData(query_info, db_info)
+                if not res:
+                    res = yield self.getData(query_info, db_info)
                 return self.write(res)
 
         # 支队执行
         if key == 'ip':
-            # res = yield self.getSubData(value)
             query_key = bytes(value + '__zhidui_res', encoding='utf-8')
             res = self.getRedisData(query_key)
+            if not res:
+                res = yield self.getSubData(value)
             return self.write(res)
 
         return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
@@ -272,8 +274,9 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             new_data = {}
             for k, v in data.items():
                 new_data[str(k, 'utf8')] = str(v, 'utf8')
-            new_data = new_data['res']
-        except:
+            new_data = new_data.get('res', {})
+        except Exception as e:
+            traceback.print_exc(e)
             new_data = {}
         return new_data
 
