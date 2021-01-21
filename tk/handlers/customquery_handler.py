@@ -49,7 +49,7 @@ def getzdlink(lkid):
 
 
 def set_query_into_redis(met, data, ty='zongdui'):
-    ins_log.read_log('info', data)
+    # ins_log.read_log('info', data)
     redis_conn = cache_conn()
     if met == 'post':
         data['create_time'] = str(datetime.datetime.now())
