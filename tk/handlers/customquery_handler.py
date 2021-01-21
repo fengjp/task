@@ -521,6 +521,9 @@ class QueryConfFileHandler(BaseHandler):
         if group2ndID:
             self.updateGroupSeq(group2ndID, group2ndSeq)
 
+        with DBContext('r') as session:
+            new_id = session.query(CustomQuery.id).filter(CustomQuery.title == title).first()
+            data['id'] = new_id
         set_query_into_redis('post', data)
         return self.write(dict(code=0, msg='添加成功'))
 

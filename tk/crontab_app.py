@@ -60,14 +60,17 @@ def run():
     for key in query_keys:
         data = redis_conn.hgetall(key)
         new_data = {}
-        for k, v in data.items():
-            new_data[str(k, 'utf8')] = str(v, 'utf8')
-        if not new_data:
-            redis_conn.srem('query_list', key)
-        if new_data['status'] == '1':
-            now = int(time.time())
-            if now >= int(new_data['next_time']):
-                do_sql(redis_conn, key, new_data)
+        try:
+            for k, v in data.items():
+                new_data[str(k, 'utf8')] = str(v, 'utf8')
+            if not new_data:
+                redis_conn.srem('query_list', key)
+            if new_data['status'] == '1':
+                now = int(time.time())
+                if now >= int(new_data['next_time']):
+                    do_sql(redis_conn, key, new_data)
+        except Exception as e:
+            traceback.print_exc(e)
 
 
 def do_sql(redis_conn, key, new_data):
