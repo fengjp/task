@@ -123,4 +123,18 @@ class Customized(Base):
     todate = Column('todate', String(100))
     download_dir = Column('download_dir', String(50))  # 文件目录
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
+<<<<<<< Updated upstream
     start_end = Column('start_end', String(50))
+=======
+    start_end = Column('start_end', String(50))
+
+
+class CustomQueryLog(Base):
+    __tablename__ = 'custom_query_log'
+
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    title = Column('title', String(50), default='')  # 标题
+    targeted_val = Column('targeted_val', String(50), default='')  # 指标值
+    remark = Column('remark', String(50), default='')  # 备注
+    create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
+>>>>>>> Stashed changes
