@@ -96,6 +96,7 @@ def do_sql(redis_conn, key, new_data):
                     url = 'http://' + url
                     status_code, resp_time = getHttpCode(url)
                     _d = {}
+                    _d['get_time'] = str(datetime.datetime.now()).split('.')[0]
                     _d['url'] = url
                     _d['httpcode'] = status_code
                     _d['resp_time'] = resp_time
