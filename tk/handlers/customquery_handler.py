@@ -523,7 +523,7 @@ class QueryConfFileHandler(BaseHandler):
 
         with DBContext('r') as session:
             new_id = session.query(CustomQuery.id).filter(CustomQuery.title == title).first()
-            data['id'] = new_id
+            data['id'] = new_id[0]
         set_query_into_redis('post', data)
         return self.write(dict(code=0, msg='添加成功'))
 
