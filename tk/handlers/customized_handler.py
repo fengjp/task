@@ -101,9 +101,7 @@ class CustomizedHandler(BaseHandler):
         Base_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         upload_path = '{}/static/report/'.format(Base_DIR)
         # upload_path = upload_path + download_dir
-        ins_log.read_log('info', "11111111111111111111111111111111111111")
-        ins_log.read_log('info', upload_path)
-        ins_log.read_log('info', "11111111111111111111111111111111111111")
+
         os.chdir(upload_path)
         if os.path.exists(download_dir):
              shutil.rmtree(download_dir)
