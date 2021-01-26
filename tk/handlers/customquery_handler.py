@@ -9,7 +9,7 @@ from websdk.consts import const
 from websdk.cache_context import cache_conn
 from websdk.web_logs import ins_log
 from sqlalchemy import or_, and_
-from models.task import model_to_dict, CustomQuery, CustomTmp, CustomGroup, CustomQuerySub, CustomZdLink
+from models.task import model_to_dict, CustomQuery, CustomTmp, CustomGroup, CustomQuerySub, CustomZdLink, CustomQueryLog
 from libs.mysql_conn import MysqlBase
 from libs.oracle_conn import OracleBase
 from settings import CUSTOM_DB_INFO
@@ -21,6 +21,7 @@ import requests
 from tornado import gen
 from tornado.concurrent import run_on_executor
 from concurrent.futures import ThreadPoolExecutor
+from websdk.cache_context import cache_conn
 
 # typeObj: [
 #     {'id': 0, 'name': '正常'},
@@ -47,6 +48,43 @@ def getzdlink(lkid):
     return zdlink
 
 
+def set_query_into_redis(met, data, ty='zongdui'):
+    # ins_log.read_log('info', data)
+    redis_conn = cache_conn()
+    if met == 'post':
+        data['create_time'] = str(datetime.datetime.now())
+        data['update_time'] = ''
+        data['status'] = '1'
+
+    if met == 'put':
+        data['update_time'] = str(datetime.datetime.now())
+        data['status'] = '1'
+
+    query_key = bytes(data['title'] + '__' + ty, encoding='utf-8')
+
+    if met == 'delete':
+        redis_conn.delete(query_key)
+        redis_conn.srem('query_list', query_key)
+
+    elif met == 'patch':
+        new_status = data['new_status']
+        redis_conn.hmset(query_key, {'status': new_status})
+
+    else:
+        if data['timesTy'] == 'timesTy1':
+            data['next_time'] = data['timesTy1Val'] * 60 + int(time.time())
+
+        if data['timesTy'] == 'timesTy2':
+            s1 = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+            s2 = data['timesTy2Val'] + ':00'
+            timeArray = time.strptime('%s %s' % (s1, s2), "%Y-%m-%d %H:%M:%S")
+            timeStamp = int(time.mktime(timeArray))
+            data['next_time'] = timeStamp
+
+        redis_conn.hmset(query_key, data)
+        redis_conn.sadd('query_list', query_key)
+
+
 class QueryConfDoSqlFileHandler(BaseHandler):
     executor = ThreadPoolExecutor(10)
 
@@ -58,28 +96,42 @@ class QueryConfDoSqlFileHandler(BaseHandler):
         errormsg = ''
         # 总队执行
         if key == 'id':
+            db_info = []
             try:
                 with DBContext('r') as session:
                     query_info = session.query(CustomQuery).filter(CustomQuery.id == value).first()
 
-                dblinkId = query_info.dblinkId
-                CUSTOM_DB_INFO['db'] = 'codo_cmdb'
-                mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
-                # 获取数据库源 连接地址
-                select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(
-                    dblinkId)
-                db_info = mysql_conn.query(select_db)
+                if query_info.type == 'sql':
+                    dblinkId = query_info.dblinkId
+                    CUSTOM_DB_INFO['db'] = 'codo_cmdb'
+                    mysql_conn = MysqlBase(**CUSTOM_DB_INFO)
+                    # 获取数据库源 连接地址
+                    select_db = 'select db_type, db_host, db_port, db_user, db_pwd, db_instance from asset_db where id = {}'.format(
+                        dblinkId)
+                    db_info = mysql_conn.query(select_db)
+
+                elif query_info.type == 'urls':
+                    query_key = bytes(query_info.title + '__zongdui_res', encoding='utf-8')
+                    res = self.getRedisData(query_key)
+                    return self.write(res)
+
             except:
                 errormsg = '获取数据库源连接信息失败'
                 return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[]))
 
             if len(db_info) > 0:
-                res = yield self.getData(query_info, db_info)
+                query_key = bytes(query_info.title + '__zongdui_res', encoding='utf-8')
+                res = self.getRedisData(query_key)
+                if not res:
+                    res = yield self.getData(query_info, db_info)
                 return self.write(res)
 
         # 支队执行
         if key == 'ip':
-            res = yield self.getSubData(value)
+            query_key = bytes(value + '__zhidui_res', encoding='utf-8')
+            res = self.getRedisData(query_key)
+            if not res:
+                res = yield self.getSubData(value)
             return self.write(res)
 
         return self.write(dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={}))
@@ -215,6 +267,19 @@ class QueryConfDoSqlFileHandler(BaseHandler):
             errormsg = e
             return dict(code=-1, msg='获取失败', errormsg=errormsg, data=[], count={})
 
+    def getRedisData(self, key):
+        try:
+            redis_conn = cache_conn()
+            data = redis_conn.hgetall(key)
+            new_data = {}
+            for k, v in data.items():
+                new_data[str(k, 'utf8')] = str(v, 'utf8')
+            new_data = new_data.get('res', {})
+        except Exception as e:
+            traceback.print_exc(e)
+            new_data = {}
+        return new_data
+
 
 class QueryConfForshowFileHandler(BaseHandler):
     def get(self, *args, **kwargs):
@@ -239,6 +304,8 @@ class QueryConfForshowFileHandler(BaseHandler):
                 # count = session.query(CustomQuery).count()
                 query_info = session.query(CustomQuery).all()
 
+        redis_conn = cache_conn()
+
         for msg in query_info:
             if msg.status == '0':
                 continue
@@ -257,6 +324,8 @@ class QueryConfForshowFileHandler(BaseHandler):
             data_dict['group1stSeq'] = self.getGroupInfo(data_dict['groupID'][0])[1]
             data_dict['group2ndNa'] = self.getGroupInfo(data_dict['groupID'][1])[0]
             data_dict['group2ndSeq'] = self.getGroupInfo(data_dict['groupID'][1])[1]
+            data_dict['next_time'] = self.next_time(redis_conn, data_dict['title'], 'zongdui')
+            data_dict['query_ty'] = 0
             dict_list.append(data_dict)
 
         # 支队配置
@@ -283,10 +352,21 @@ class QueryConfForshowFileHandler(BaseHandler):
             data_dict['group2ndSeq'] = msg.group2ndSeq
             data_dict['zdlink'] = getzdlink(msg.zdlinkID)
             data_dict['qid'] = msg.qid
+            data_dict['next_time'] = self.next_time(redis_conn, data_dict['title'], 'zhidui')
+            data_dict['query_ty'] = 1
             dict_list.append(data_dict)
 
         dict_list.sort(key=lambda x: x['seq'])
         return self.write(dict(code=0, msg='获取成功', data=dict_list))
+
+    def next_time(self, redis_conn, title, ty):
+        query_key = bytes(title + '__' + ty, encoding='utf-8')
+        next_time = redis_conn.hget(query_key, 'next_time')
+        if next_time != None:
+            next_time = int(next_time)
+        else:
+            next_time = 0
+        return next_time
 
     def getGroupInfo(self, gid):
         name = ''
@@ -359,6 +439,7 @@ class QueryConfFileHandler(BaseHandler):
                 data_dict['group2ndID'] = groupID[1] if groupID else -1
                 data_dict['group1stSeq'] = self.getGroupSeq(data_dict['group1stID'])
                 data_dict['group2ndSeq'] = self.getGroupSeq(data_dict['group2ndID'])
+                data_dict['urls'] = json.loads(data_dict['urls']) if data_dict['urls'] else []
                 dict_list.append(data_dict)
 
         return self.write(dict(code=0, msg='获取成功', data=dict_list, count=count))
@@ -374,7 +455,7 @@ class QueryConfFileHandler(BaseHandler):
     def post(self):
         data = json.loads(self.request.body.decode("utf-8"))
         title = data.get('title')
-        dblinkId = data.get('dblinkId')
+        dblinkId = data.get('dblinkId', 0)
         database = data.get('database')
         sql = data.get('sql')
         colnames = data.get('colnames')
@@ -386,10 +467,12 @@ class QueryConfFileHandler(BaseHandler):
         password = data.get('password')
         description = data.get('description')
         seq = data.get('seq')
-        group1stID = data.get('group1stID')
-        group2ndID = data.get('group2ndID')
-        group1stSeq = data.get('group1stSeq')
-        group2ndSeq = data.get('group2ndSeq')
+        group1stID = data.get('group1stID', '')
+        group2ndID = data.get('group2ndID', '')
+        group1stSeq = data.get('group1stSeq', 0)
+        group2ndSeq = data.get('group2ndSeq', 0)
+        ty = data.get('type', 'sql')
+        urls = data.get('urls', [])
 
         if timesTy == 'timesTy1':
             timesTyVal = timesTy1Val
@@ -408,25 +491,40 @@ class QueryConfFileHandler(BaseHandler):
         if group1stID != '' and group2ndID != '':
             groupID = json.dumps([group1stID, group2ndID])
         else:
-            groupID = [0, 0]
+            group1stID = group2ndID = group1stSeq = group2ndSeq = 0
+            groupID = json.dumps([group1stID, group2ndID])
+
+        if len(urls) > 0:
+            urls = json.dumps(urls)
+        else:
+            urls = ''
 
         # 加密密码
         password = encrypt(password)
 
         sql = re.sub('update|drop', '', sql, 0, re.I)
 
+        if not dblinkId:
+            dblinkId = 0
+
         with DBContext('w', None, True) as session:
             new_query = CustomQuery(title=title, dblinkId=int(dblinkId), database=database, sql=sql,
                                     colnames=json.dumps(colnames), timesTy=timesTy, timesTyVal=timesTyVal,
                                     colalarms=json.dumps(colalarms), user=user, password=password,
-                                    description=description, seq=seq, groupID=groupID,
+                                    description=description, seq=seq, groupID=groupID, type=ty, urls=urls,
                                     )
             session.add(new_query)
 
         # 更新分组排序号
-        self.updateGroupSeq(group1stID, group1stSeq)
-        self.updateGroupSeq(group2ndID, group2ndSeq)
+        if group1stID:
+            self.updateGroupSeq(group1stID, group1stSeq)
+        if group2ndID:
+            self.updateGroupSeq(group2ndID, group2ndSeq)
 
+        with DBContext('r') as session:
+            new_id = session.query(CustomQuery.id).filter(CustomQuery.title == title).first()
+            data['id'] = new_id[0]
+        set_query_into_redis('post', data)
         return self.write(dict(code=0, msg='添加成功'))
 
     def updateGroupSeq(self, gid, seq):
@@ -439,7 +537,7 @@ class QueryConfFileHandler(BaseHandler):
     def put(self):
         data = json.loads(self.request.body.decode("utf-8"))
         title = data.get('title')
-        dblinkId = data.get('dblinkId')
+        dblinkId = data.get('dblinkId', 0)
         database = data.get('database')
         sql = data.get('sql')
         colnames = data.get('colnames')
@@ -452,10 +550,12 @@ class QueryConfFileHandler(BaseHandler):
         password = data.get('password')
         description = data.get('description')
         seq = data.get('seq')
-        group1stID = data.get('group1stID')
-        group2ndID = data.get('group2ndID')
-        group1stSeq = data.get('group1stSeq')
-        group2ndSeq = data.get('group2ndSeq')
+        group1stID = data.get('group1stID', '')
+        group2ndID = data.get('group2ndID', '')
+        group1stSeq = data.get('group1stSeq', 0)
+        group2ndSeq = data.get('group2ndSeq', 0)
+        ty = data.get('type', 'sql')
+        urls = data.get('urls', [])
 
         if timesTy == 'timesTy1':
             timesTyVal = timesTy1Val
@@ -472,11 +572,20 @@ class QueryConfFileHandler(BaseHandler):
         if group1stID != '' and group2ndID != '':
             groupID = json.dumps([group1stID, group2ndID])
         else:
-            groupID = [0, 0]
+            group1stID = group2ndID = group1stSeq = group2ndSeq = 0
+            groupID = json.dumps([group1stID, group2ndID])
 
         if old_password != password:
             # 加密密码
             password = encrypt(password)
+
+        if len(urls) > 0:
+            urls = json.dumps(urls)
+        else:
+            urls = ''
+
+        if not dblinkId:
+            dblinkId = 0
 
         with DBContext('w', None, True) as session:
             session.query(CustomQuery).filter(CustomQuery.id == int(queryId)).update(
@@ -485,13 +594,17 @@ class QueryConfFileHandler(BaseHandler):
                  CustomQuery.colnames: json.dumps(colnames), CustomQuery.timesTy: timesTy,
                  CustomQuery.timesTyVal: timesTyVal, CustomQuery.colalarms: json.dumps(colalarms),
                  CustomQuery.user: user, CustomQuery.password: password, CustomQuery.description: description,
-                 CustomQuery.seq: seq, CustomQuery.groupID: groupID,
+                 CustomQuery.seq: seq, CustomQuery.groupID: groupID, CustomQuery.type: ty,
+                 CustomQuery.urls: urls,
                  }, )
 
         # 更新分组排序号
-        self.updateGroupSeq(group1stID, group1stSeq)
-        self.updateGroupSeq(group2ndID, group2ndSeq)
+        if group1stID:
+            self.updateGroupSeq(group1stID, group1stSeq)
+        if group2ndID:
+            self.updateGroupSeq(group2ndID, group2ndSeq)
 
+        set_query_into_redis('put', data)
         return self.write(dict(code=0, msg='编辑成功'))
 
     def delete(self, *args, **kwargs):
@@ -505,6 +618,7 @@ class QueryConfFileHandler(BaseHandler):
             else:
                 return self.write(dict(code=1, msg='关键参数不能为空'))
 
+        set_query_into_redis('delete', data)
         self.write(dict(code=0, msg='删除成功'))
 
     def patch(self, *args, **kwargs):
@@ -534,7 +648,8 @@ class QueryConfFileHandler(BaseHandler):
         with DBContext('w', None, True) as session:
             session.query(CustomQuery).filter(CustomQuery.id == query_id).update(
                 {CustomQuery.status: new_status})
-
+        data['new_status'] = new_status
+        set_query_into_redis('patch', data)
         return self.write(dict(code=0, msg=msg))
 
 
@@ -797,7 +912,8 @@ class QuerySubConfHandler(BaseHandler):
 
         # 更新分组排序号
         self.updateGroupSeq(group1stID, group1stSeq)
-
+        data['zdlink'] = getzdlink(zdlinkID)
+        set_query_into_redis('post', data, ty='zhidui')
         return self.write(dict(code=0, msg='添加成功'))
 
     def updateGroupSeq(self, gid, seq):
@@ -864,7 +980,8 @@ class QuerySubConfHandler(BaseHandler):
 
         # 更新分组排序号
         self.updateGroupSeq(group1stID, group1stSeq)
-
+        data['zdlink'] = getzdlink(zdlinkID)
+        set_query_into_redis('put', data, ty='zhidui')
         return self.write(dict(code=0, msg='编辑成功'))
 
     def patch(self, *args, **kwargs):
@@ -895,7 +1012,8 @@ class QuerySubConfHandler(BaseHandler):
         with DBContext('w', None, True) as session:
             session.query(CustomQuerySub).filter(CustomQuerySub.id == query_id).update(
                 {CustomQuerySub.status: new_status})
-
+        data['new_status'] = new_status
+        set_query_into_redis('patch', data, ty='zhidui')
         return self.write(dict(code=0, msg=msg))
 
     def delete(self, *args, **kwargs):
@@ -909,6 +1027,7 @@ class QuerySubConfHandler(BaseHandler):
             else:
                 return self.write(dict(code=1, msg='关键参数不能为空'))
 
+        set_query_into_redis('delete', data, ty='zhidui')
         self.write(dict(code=0, msg='删除成功'))
 
 
@@ -995,6 +1114,7 @@ class PushConfHandler(BaseHandler):
     def post(self):
         data = json.loads(self.request.body.decode("utf-8"))
         failed_list = []
+        redis_conn = cache_conn()
         for payload in data:
             try:
                 url = 'http://' + payload['zdlink'] + '/queryPushConf/'
@@ -1011,6 +1131,7 @@ class PushConfHandler(BaseHandler):
                                 session.query(CustomQuerySub).filter(CustomQuerySub.id == int(id)).update(
                                     {CustomQuerySub.qid: qid},
                                 )
+                            redis_conn.hmset(bytes(payload['title'] + '__zhidui', encoding='utf-8'), {'qid': qid})
                     else:
                         title = payload['title']
                         failed_list.append(title)
@@ -1039,6 +1160,7 @@ class PullConfHandler(BaseHandler):
             except requests.exceptions.ConnectTimeout:
                 return self.write(dict(code=-1, msg='网络超时'))
             if res.text:
+                redis_conn = cache_conn()
                 res_data = json.loads(res.text)
                 res_data = res_data['data']
                 for data in res_data:
@@ -1102,6 +1224,9 @@ class PullConfHandler(BaseHandler):
                                 group2ndSeq=group2ndSeq, zdlinkID=zdlinkID,
                             )
                             session.add(new_query)
+
+                    redis_conn.hmset(bytes(title + '__zhidui', encoding='utf-8'), {'qid': qid})
+
 
         except Exception as e:
             traceback.print_exc(e)
@@ -1174,6 +1299,29 @@ class ZdGroupHandler(BaseHandler):
             return self.write(dict(code=0, msg='失败'))
 
 
+class QueryConfLogHandler(BaseHandler):
+    '''
+        log
+    '''
+
+    def get(self, *args, **kwargs):
+        qid = self.get_argument('qid', default=None, strip=True)
+        qty = self.get_argument('qty', default=None, strip=True)
+        ins_log.read_log('info', qid)
+        ins_log.read_log('info', qty)
+        data_dict = {}
+        with DBContext('r') as session:
+            cursor = session.execute('''
+            select create_time,targeted_val from custom_query_log
+            where qid = %s and ty = %s order by id desc limit 0, 10
+            ''' % (qid, qty))
+            result = cursor.fetchall()
+            for create_time, targeted_val in result:
+                data_dict[str(create_time)] = targeted_val
+
+        return self.write(dict(code=0, msg='获取成功', data=data_dict))
+
+
 customquery_urls = [
     (r"/v1/queryConf/", QueryConfFileHandler),
     (r"/v1/queryConfForshow/", QueryConfForshowFileHandler),
@@ -1188,6 +1336,7 @@ customquery_urls = [
     (r"/v1/queryPullConf/", PullConfHandler),
     (r"/v1/getZdInfo/", ZdInfoHandler),
     (r"/v1/changeZdGroup/", ZdGroupHandler),
+    (r"/v1/getQueryLog/", QueryConfLogHandler),
 ]
 
 if __name__ == "__main__":

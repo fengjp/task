@@ -36,6 +36,8 @@ class CustomQuery(Base):
     description = Column('description', Text, default='')  # 描述
     seq = Column('seq', Integer)  # 序号
     groupID = Column('groupID', String(255), default='')  # 层级组ID
+    urls = Column('urls', String(512), default='')  # urls
+    type = Column('type', String(50), default='')  # 监控类型
 
 
 class CustomQuerySub(Base):
@@ -111,6 +113,7 @@ class Score(Base):
     yunxing_remarks = Column('yunxing_remarks', Text, default='')
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
 
+
 class Customized(Base):
     __tablename__ = 'customizedList'
 
@@ -162,3 +165,13 @@ class Ranking(Base):
     paiming = Column('paiming', String(5))
     zongfen = Column('zongfen', String(5))
     create_time = Column('create_time', DateTime(), default=datetime.now)
+class CustomQueryLog(Base):
+    __tablename__ = 'custom_query_log'
+
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    title = Column('title', String(50), default='')  # 标题
+    qid = Column('qid', Integer, index=True) # 查询项目id
+    ty = Column('ty', Integer, index=True)  # 总队 0 支队 1
+    targeted_val = Column('targeted_val', String(50), default='')  # 指标值
+    remark = Column('remark', String(50), default='')  # 备注
+    create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间

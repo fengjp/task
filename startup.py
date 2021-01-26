@@ -9,6 +9,7 @@ from tornado.options import define
 from websdk.program import MainProgram
 from settings import settings as app_settings
 from tk.applications import Application as MgApp
+from tk.crontab_app import Application as CronApp
 
 define("service", default='api', help="start service flag", type=str)
 
@@ -19,6 +20,8 @@ class MyProgram(MainProgram):
         settings = app_settings
         if service == 'tk':
             self.__app = MgApp(**settings)
+        if service == 'tk_cron':
+            self.__app = CronApp(**settings)
 
         super(MyProgram, self).__init__(progressid)
         self.__app.start_server()
