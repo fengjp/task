@@ -326,6 +326,7 @@ class QueryConfForshowFileHandler(BaseHandler):
             data_dict['group2ndSeq'] = self.getGroupInfo(data_dict['groupID'][1])[1]
             data_dict['next_time'] = self.next_time(redis_conn, data_dict['title'], 'zongdui')
             data_dict['query_ty'] = 0
+            data_dict['sound'] = msg.sound
             dict_list.append(data_dict)
 
         # 支队配置
@@ -471,6 +472,7 @@ class QueryConfFileHandler(BaseHandler):
         group2ndID = data.get('group2ndID', '')
         group1stSeq = data.get('group1stSeq', 0)
         group2ndSeq = data.get('group2ndSeq', 0)
+        sound = data.get('sound', 1)
         ty = data.get('type', 'sql')
         urls = data.get('urls', [])
 
@@ -512,6 +514,7 @@ class QueryConfFileHandler(BaseHandler):
                                     colnames=json.dumps(colnames), timesTy=timesTy, timesTyVal=timesTyVal,
                                     colalarms=json.dumps(colalarms), user=user, password=password,
                                     description=description, seq=seq, groupID=groupID, type=ty, urls=urls,
+                                    sound=sound,
                                     )
             session.add(new_query)
 
@@ -554,6 +557,7 @@ class QueryConfFileHandler(BaseHandler):
         group2ndID = data.get('group2ndID', '')
         group1stSeq = data.get('group1stSeq', 0)
         group2ndSeq = data.get('group2ndSeq', 0)
+        sound = data.get('sound', 1)
         ty = data.get('type', 'sql')
         urls = data.get('urls', [])
 
@@ -595,7 +599,7 @@ class QueryConfFileHandler(BaseHandler):
                  CustomQuery.timesTyVal: timesTyVal, CustomQuery.colalarms: json.dumps(colalarms),
                  CustomQuery.user: user, CustomQuery.password: password, CustomQuery.description: description,
                  CustomQuery.seq: seq, CustomQuery.groupID: groupID, CustomQuery.type: ty,
-                 CustomQuery.urls: urls,
+                 CustomQuery.urls: urls, CustomQuery.sound: sound,
                  }, )
 
         # 更新分组排序号
