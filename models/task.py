@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*-coding:utf-8-*-
 
-from sqlalchemy import Column, String, Integer, DateTime, Text
+from sqlalchemy import Column, String, Integer, DateTime, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import class_mapper
 from datetime import datetime
@@ -38,6 +38,7 @@ class CustomQuery(Base):
     groupID = Column('groupID', String(255), default='')  # 层级组ID
     urls = Column('urls', String(512), default='')  # urls
     type = Column('type', String(50), default='')  # 监控类型
+    sound = Column('sound', Boolean, default=1)  # 告警声音
 
 
 class CustomQuerySub(Base):
@@ -172,7 +173,7 @@ class CustomQueryLog(Base):
 
     id = Column('id', Integer, primary_key=True, autoincrement=True)
     title = Column('title', String(50), default='')  # 标题
-    qid = Column('qid', Integer, index=True) # 查询项目id
+    qid = Column('qid', Integer, index=True)  # 查询项目id
     ty = Column('ty', Integer, index=True)  # 总队 0 支队 1
     targeted_val = Column('targeted_val', String(50), default='')  # 指标值
     remark = Column('remark', String(50), default='')  # 备注

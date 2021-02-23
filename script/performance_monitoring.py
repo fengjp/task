@@ -94,6 +94,14 @@ def get_iostat(hosts, asb):
     return res
 
 
+def get_ping(hosts, asb):
+    res = {}
+    asb.run(hosts=hosts, module="ping", args="")
+    stdout_dict = json.loads(asb.get_result())
+    print(stdout_dict)
+    return res
+
+
 def intoSql(obj):
     try:
         sql = '''
