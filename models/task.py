@@ -141,6 +141,8 @@ class Ranking(Base):
     peizhi_remarks = Column('peizhi_remarks', Text, default='')
     shengji = Column('shengji', String(5))
     shengji_remarks = Column('shengji_remarks', Text, default='')
+    xtpeizhi = Column('xtpeizhi', String(5), )
+    xtpeizhi_remarks = Column('xtpeizhi_remarks', Text, default='')
     zhichi = Column('zhichi', String(5))
     zhichi_remarks = Column('zhichi_remarks', Text, default='')
     duanxin = Column('duanxin', String(5))
@@ -174,4 +176,31 @@ class CustomQueryLog(Base):
     ty = Column('ty', Integer, index=True)  # 总队 0 支队 1
     targeted_val = Column('targeted_val', String(50), default='')  # 指标值
     remark = Column('remark', String(50), default='')  # 备注
+    create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
+
+class Business(Base):
+    __tablename__ = 'business'
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    riqi = Column('riqi',String(30), default='')  # 日期
+    guangzhou = Column('guangzhou', Text, default='')
+    shenzhen = Column('shenzhen', Text, default='')
+    shaoguan = Column('shaoguan', Text, default='')
+    foshan = Column('foshan', Text, default='')
+    zhongshan = Column('zhongshan', Text, default='')
+    zhuhai = Column('zhuhai', Text, default='')
+    huizhou = Column('huizhou', Text, default='')
+    shantou = Column('shantou', Text, default='')
+    jiangmen = Column('jiangmen', Text, default='')
+    zhanjiang = Column('zhanjiang', Text, default='')
+    maoming = Column('maoming', Text, default='')
+    zhaoqing = Column('zhaoqing', Text, default='')
+    meizhou = Column('meizhou', Text, default='')
+    shanwei = Column('shanwei', Text, default='')
+    heyuan = Column('heyuan', Text, default='')
+    yangjiang = Column('yangjiang', Text, default='')
+    qingyuan = Column('qingyuan', Text, default='')
+    dongguan = Column('dongguan', Text, default='')
+    chaozhou = Column('chaozhou', Text, default='')
+    jieyang = Column('jieyang', Text, default='')
+    yunfu = Column('yunfu', Text, default='')
     create_time = Column('create_time', DateTime(), default=datetime.now)  # 创建时间
