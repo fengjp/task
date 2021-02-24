@@ -715,7 +715,10 @@ class getzhibiaoHandler(BaseHandler):
         data_list = []
         temp_list3 = []
         months_list = []
-
+        allzhibiaoList = {"bhlpz": '补换领牌证',"slmjbz": '申领免检标志',"dzjkcl": '电子监控处理',"jtsgkc": '交通事故快处',
+                          "yxjdchp": '预选机动车号牌',"mfsyjy": '满分审验教育',"pzywjscl": '牌证业务及时受理率',"yxhpzljsshl": '预选号牌资料及时审核率',
+                          "tfsqjschl": '退费申请及时受理率',"mfsyjyjsshl": '满分审验教育及时审核率',"yhxxjsshl": '用户信息及时审核率',"wbywmyd": '网办业务满意度',
+                           "yhfkmyd": '用户反馈满意度',"yzsfwjcxxwh": '一站式服务基础信息维护',"jtaqxc": '交通安全宣传'}
 
         from datetime import date
         temp_start = date(int(startdate.split('-')[0]), int(startdate.split('-')[1]), 1)
@@ -736,27 +739,40 @@ class getzhibiaoHandler(BaseHandler):
         ins_log.read_log('info', zhibiao)
         ins_log.read_log('info', city)
         ins_log.read_log('info', months_list)
-        for d in  months_list:
-          with DBContext('r') as session:
-              todata = session.query(Business).filter(Business.riqi == d).all()
-              tocount = session.query(Business).filter(Business.riqi == d).count()
-              for msg in todata:
-                  businessdict = {}
-                  data_dict = model_to_dict(msg)
-                  businessdict["id"] = data_dict["id"]
-                  businessdict[city] = data_dict[city]
-                  data_list.append(eval(data_dict[city])[zhibiao])
-              if tocount < 1:
-                  data_list.append(0)
-
+        temo_zhibiao_list = []
+        for  z in eval(zhibiao):
+          data_list = []
+          for d in  months_list:
+            with DBContext('r') as session:
+                todata = session.query(Business).filter(Business.riqi == d).all()
+                tocount = session.query(Business).filter(Business.riqi == d).count()
+                for msg in todata:
+                    businessdict = {}
+                    data_dict = model_to_dict(msg)
+                    businessdict["id"] = data_dict["id"]
+                    businessdict[city] = data_dict[city]
+                    data_list.append(eval(data_dict[city])[z])
+                if tocount < 1:
+                    data_list.append(0)
+          temo_zhibiao_dict = {
+              "name": allzhibiaoList[z],
+              "keyname":z,
+              "type": 'line',
+              # "stack": '总量',
+              "data": data_list
+          }
+          temo_zhibiao_list.append(temo_zhibiao_dict)
         ins_log.read_log('info', startdate)
         ins_log.read_log('info', enddate)
         ins_log.read_log('info', zhibiao)
         ins_log.read_log('info', city)
         ins_log.read_log('info', months_list)
         ins_log.read_log('info', data_list)
-        if len(data_list) > 0:
-            self.write(dict(code=0, msg='获取成功', data=data_list,months=months_list))
+        legendlist = []
+        for z in eval(zhibiao):
+            legendlist.append(allzhibiaoList[z])
+        if len(temo_zhibiao_list) > 0:
+            self.write(dict(code=0, msg='获取成功', data=temo_zhibiao_list,months=months_list,legendlist = legendlist))
         else:
             self.write(dict(code=-1, msg='没有相关数据', count=0, data=[]))
 
