@@ -823,6 +823,31 @@ class uploadRankinglist2(BaseHandler):
               return self.write(dict(code=-1, msg=e))
 
 
+class shangyueHandler(BaseHandler):
+    def get(self, *args, **kwargs):
+        now = datetime.now()
+        date = now + dateutil.relativedelta.relativedelta(months=-1)  # 上个月时间
+        # date.strftime('%Y-%m') #上个月份
+        shangyuedate = date.strftime('%Y-%m')
+
+        data_list = []
+        ins_log.read_log('info', shangyuedate)
+        with DBContext('r') as session:
+            # conditions = []
+            todata = session.query(Ranking).filter(Ranking.riqi == shangyuedate).all()
+            # tocount = session.query(Customized).filter().count()
+
+        for msg in todata:
+            ranking_list = {}
+            data_dict = model_to_dict(msg)
+            ranking_list["id"] = data_dict["id"]
+            ranking_list["zongfen"] = data_dict["zongfen"]
+            data_list.append(ranking_list)
+
+        if len(data_list) > 0:
+            self.write(dict(code=0, msg='获取成功', data=data_list))
+        else:
+            self.write(dict(code=-1, msg='没有相关数据', count=0, data=[]))
 
 meter_urls = [
     (r"/v2/accounts/meter/", MeterHandler),
@@ -830,6 +855,7 @@ meter_urls = [
     (r"/v2/accounts/ranking/", rankinglistHandler),
     (r"/v2/accounts/ranking/upload/", uploadRankinglist),
     (r"/v2/accounts/ranking/upload2/", uploadRankinglist2),
+    (r"/v2/accounts/ranking/shangyue/", shangyueHandler),
     (r"/v2/accounts/linedata/", linedataHandler),
     (r"/v2/accounts/bjdata/", bjdataHandler),
 ]
