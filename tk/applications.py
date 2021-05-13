@@ -12,6 +12,7 @@ from tk.handlers.customized_handler import customized_urls
 from tk.handlers.certdata_handler import certdata_urls
 from tk.handlers.meter_handler import meter_urls
 from tk.handlers.business_handler import business_urls
+from tk.handlers.faceRecognition_handler import faceRecognition_urls
 
 
 class Application(myApplication):
@@ -24,6 +25,7 @@ class Application(myApplication):
         urls.extend(certdata_urls)
         urls.extend(meter_urls)
         urls.extend(business_urls)
+        urls.extend(faceRecognition_urls)
         super(Application, self).__init__(urls, **settings)
 
 
